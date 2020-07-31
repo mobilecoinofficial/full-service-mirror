@@ -18,8 +18,9 @@ use mc_mobilecoind_mirror::{
 };
 use mc_util_grpc::ConnectionUriGrpcioChannel;
 use rsa::RSAPublicKey;
-use std::convert::TryFrom;
-use std::{collections::HashMap, str::FromStr, sync::Arc, thread::sleep, time::Duration};
+use std::{
+    collections::HashMap, convert::TryFrom, str::FromStr, sync::Arc, thread::sleep, time::Duration,
+};
 use structopt::StructOpt;
 
 /// A wrapper to ease monitor id parsing from a hex string when using `StructOpt`.
@@ -65,7 +66,7 @@ pub struct Config {
     #[structopt(long)]
     pub monitor_id: Option<MonitorId>,
 
-    /// Optional encryption public key. If provided, all request types but EncryptedRequest are
+    /// Optional encryption public key. If provided, all request types but SignedRequest are
     /// disabled. See `example-client.js` for an example on how to submit encrypted requests
     /// through the mirror.
     #[structopt(long, parse(try_from_str=load_public_key))]
@@ -109,6 +110,8 @@ fn main() {
         let ch = ChannelBuilder::new(env)
             .max_receive_message_len(std::i32::MAX)
             .max_send_message_len(std::i32::MAX)
+            .max_reconnect_backoff(Duration::from_millis(2000))
+            .initial_reconnect_backoff(Duration::from_millis(1000))
             .connect_to_uri(&config.mirror_public_uri, &logger);
 
         MobilecoindMirrorClient::new(ch)
@@ -277,11 +280,31 @@ fn process_encrypted_request(
     query_request: &QueryRequest,
     logger: &Logger,
 ) -> grpcio::Result<QueryResponse> {
-    if !query_request.has_encrypted_request() {
+    if !query_request.has_signed_request() {
         return Err(grpcio::Error::RpcFailure(RpcStatus::new(
             RpcStatusCode::INTERNAL,
-            Some("Only processing encrypted requests".into()),
+            Some("Only processing signed requests".into()),
         )));
+    }
+
+    let signed_request = query_request.get_signed_request();
+
+    log::debug!(
+        logger,
+        "Incoming signed request ({})",
+        signed_request.json_request
+    );
+    let sig_is_valid = crypto::verify_sig(
+        mirror_key,
+        signed_request.json_request.as_bytes(),
+        &signed_request.signature,
+    )
+    .is_ok();
+
+    if !sig_is_valid {
+        let mut err_query_response = QueryResponse::new();
+        err_query_response.set_error("Signature verification failed".to_owned());
+        return Ok(err_query_response);
     }
 
     let data: &str = "bleh bleh bleh";

@@ -16,18 +16,22 @@ use mc_common::logger::{create_app_logger, log, o, Logger};
 use mc_mobilecoind_api::GetBlockRequest;
 use mc_mobilecoind_json::data_types::{JsonBlockDetailsResponse, JsonProcessedBlockResponse};
 use mc_mobilecoind_mirror::{
-    mobilecoind_mirror_api::{EncryptedRequest, GetProcessedBlockRequest, QueryRequest},
+    mobilecoind_mirror_api::{GetProcessedBlockRequest, QueryRequest, SignedRequest},
     uri::MobilecoindMirrorUri,
 };
 use mc_util_grpc::{BuildInfoService, ConnectionUriGrpcioServer, HealthService};
 use mc_util_uri::{ConnectionUri, Uri, UriScheme};
 use mirror_service::MirrorService;
 use query::QueryManager;
+use rocket::http::Status;
+use rocket::response::Responder;
 use rocket::{
     config::{Config as RocketConfig, Environment as RocketEnvironment},
     get, post, routes,
 };
+use rocket::{Request, Response};
 use rocket_contrib::json::Json;
+use serde::Deserialize;
 use std::sync::Arc;
 use structopt::StructOpt;
 
@@ -71,6 +75,31 @@ pub struct Config {
 struct State {
     query_manager: QueryManager,
     logger: Logger,
+}
+
+/// Sets the status of the response to 400 (Bad Request).
+#[derive(Debug, Clone, PartialEq)]
+pub struct BadRequest(pub String);
+
+/// Sets the status code of the response to 400 Bad Request and include an error message in the
+/// response.
+impl<'r> Responder<'r> for BadRequest {
+    fn respond_to(self, req: &Request) -> Result<Response<'r>, Status> {
+        let mut build = Response::build();
+        build.merge(self.0.respond_to(req)?);
+
+        build.status(Status::BadRequest).ok()
+    }
+}
+impl From<&str> for BadRequest {
+    fn from(src: &str) -> Self {
+        Self(src.to_owned())
+    }
+}
+impl From<String> for BadRequest {
+    fn from(src: String) -> Self {
+        Self(src)
+    }
 }
 
 /// Retreive processed block information.
@@ -159,21 +188,28 @@ fn block(
     Ok(Json(JsonBlockDetailsResponse::from(response)))
 }
 
-#[post("/encrypted-request", data = "<payload>")]
-fn encrypted_request(state: rocket::State<State>, payload: Vec<u8>) -> Result<Vec<u8>, String> {
-    let payload_len = payload.len();
-    // TODO hash payload for logging purposes.
+#[derive(Deserialize)]
+struct JsonSignedRequest {
+    request: String,
+    signature: Vec<u8>,
+}
 
-    let mut encrypted_request = EncryptedRequest::new();
-    encrypted_request.set_payload(payload);
+#[post("/signed-request", format = "json", data = "<request>")]
+fn signed_request(
+    state: rocket::State<State>,
+    request: Json<JsonSignedRequest>,
+) -> Result<Vec<u8>, BadRequest> {
+    let mut signed_request = SignedRequest::new();
+    signed_request.set_json_request(request.request.clone());
+    signed_request.set_signature(request.signature.clone());
 
     let mut query_request = QueryRequest::new();
-    query_request.set_encrypted_request(encrypted_request);
+    query_request.set_signed_request(signed_request);
 
     log::debug!(
         state.logger,
-        "Enqueueing EncryptedRequest({} bytes)",
-        payload_len
+        "Enqueueing SignedRequest({})",
+        request.request,
     );
     let query = state.query_manager.enqueue_query(query_request);
     let query_response = query.wait()?;
@@ -181,8 +217,8 @@ fn encrypted_request(state: rocket::State<State>, payload: Vec<u8>) -> Result<Ve
     if query_response.has_error() {
         log::error!(
             state.logger,
-            "EncryptedRequest({} bytes) failed: {}",
-            payload_len,
+            "SignedRequest({}) failed: {}",
+            request.request,
             query_response.get_error()
         );
         return Err(query_response.get_error().into());
@@ -190,16 +226,16 @@ fn encrypted_request(state: rocket::State<State>, payload: Vec<u8>) -> Result<Ve
     if !query_response.has_encrypted_response() {
         log::error!(
             state.logger,
-            "EncryptedRequest({}) returned incorrect response type",
-            payload_len,
+            "SignedRequest({}) returned incorrect response type",
+            request.request,
         );
         return Err("Incorrect response type received".into());
     }
 
     log::info!(
         state.logger,
-        "EncryptedRequest({}) completed successfully",
-        payload_len,
+        "SignedRequest({}) completed successfully",
+        request.request,
     );
 
     let response = query_response.get_encrypted_response();
@@ -276,7 +312,7 @@ fn main() {
 
     log::info!(logger, "Starting client web server");
     rocket::custom(rocket_config)
-        .mount("/", routes![processed_block, block, encrypted_request])
+        .mount("/", routes![processed_block, block, signed_request])
         .manage(State {
             query_manager,
             logger,

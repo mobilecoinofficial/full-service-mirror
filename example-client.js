@@ -16,11 +16,11 @@ let public_mirror_port = 8001;
 
 // Load key
 // TODO: Make this a command line argument
-var key_bytes = fs.readFileSync('beam-private.pem')
+let key_bytes = fs.readFileSync('beam-private.pem')
 if (!key_bytes) {
     throw 'Failed loading key';
 }
-var key = crypto.createPrivateKey({key: key_bytes, passphrase: ''});
+let key = crypto.createPrivateKey({key: key_bytes, passphrase: ''});
 if (!key) {
     throw 'Failed creating key';
 }
@@ -34,48 +34,50 @@ if (test_data.length != KEY_SIZE) {
 }
 
 // Example request
-let request = {a: 'b'};
+let request = JSON.stringify({a: 'b'});
 
-// Encrypt request
-let enc_data = Buffer.from([1, 2, 3]);
+let signature = sign(request);
+let post_data = JSON.stringify({
+    request: request,
+    signature: [...signature],
+});
 
 // Send request to server
-var req = http.request({
+let req = http.request({
     host: public_mirror_host,
     port: public_mirror_port,
-    path: '/encrypted-request',
+    path: '/signed-request',
 	method: 'POST',
 	headers: {
-	    'Content-Type': 'Content-Type: application/octet-stream',
-	    'Content-Length': Buffer.byteLength(enc_data)
+	    'Content-Type': 'application/json',
+	    'Content-Length': Buffer.byteLength(post_data)
 	}
 }, (response) => {
-    	var buf = []
-        if(response.statusCode == 200) {
-            response.on('data', (chunk) => {
-                buf.push(chunk)
-            });
+    	let buf = []
+        response.on('data', (chunk) => {
+            buf.push(chunk)
+        });
 
-            response.on('end', () => {
-            	var result = decrypt(Buffer.concat(buf)).toString()
-                console.log(result)
-                buf = []
-            });
+        response.on('end', () => {
+            if(response.statusCode == 200) {
+                let result = decrypt(Buffer.concat(buf)).toString();
+                console.log(result);
+            } else {
+                console.log(`Http error, status: ${response.statusCode}: ${buf}`)
+            }
+        });
 
-            response.on('error', (error) => {
-                console.log('error occured while reading response:', error);
-            })
-        } else {
-            console.log(`Http error, status: ${response.statusCode}`)
-        }
+        response.on('error', (error) => {
+            console.log('error occured while reading response:', error);
+        })
     }
 )
-req.write(enc_data)
+req.write(post_data)
 req.end()
 
 // Crypto utilities
 function encrypt(buf) {
-    var res = [];
+    let res = [];
     let pub_key = crypto.createPublicKey(key);
 
     // Each encrypted chunk must be no longer than the length of the public modulus minus (2 + 2*hash.size()).
@@ -84,7 +86,7 @@ function encrypt(buf) {
 
     while (buf.length > 0)
     {
-        var data = buf.slice(0, MAX_CHUNK_SIZE);
+        let data = buf.slice(0, MAX_CHUNK_SIZE);
         buf = buf.slice(data.length);
 
         res.push(crypto.publicEncrypt({
@@ -99,11 +101,11 @@ function encrypt(buf) {
 }
 
 function decrypt(buf) {
-    var res = [];
+    let res = [];
 
     while (buf.length > 0)
     {
-        var data = buf.slice(0, KEY_SIZE);
+        let data = buf.slice(0, KEY_SIZE);
         buf = buf.slice(data.length);
 
         res.push(crypto.privateDecrypt({
@@ -115,4 +117,8 @@ function decrypt(buf) {
     }
 
     return Buffer.concat(res)
+}
+
+function sign(buf) {
+    return crypto.sign(null, Buffer.from(buf), {key, passphrase: ''})
 }

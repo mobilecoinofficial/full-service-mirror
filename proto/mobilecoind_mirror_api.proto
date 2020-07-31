@@ -18,7 +18,7 @@ message QueryRequest {
     oneof request {
         GetProcessedBlockRequest get_processed_block = 1;
         mobilecoind_api.GetBlockRequest get_block = 2;
-        EncryptedRequest encrypted_request = 3;
+        SignedRequest signed_request = 3;
     }
 }
 
@@ -56,16 +56,14 @@ message GetProcessedBlockRequest {
     uint64 block = 1;
 }
 
-// A request thas has been encrypted end-to-end by the client.
-message EncryptedRequest {
-    // The encrypted data holds a JSON object.
-    // TODO document
-    bytes payload = 1;
+// A request thas has been signed by the client.
+message SignedRequest {
+    string json_request = 1;
+    bytes signature = 2;
 }
 
-// A response that has been encrypted end-to-end to be handed back to the client.
+// A response that has been encrypted, to be handed back to the client.
 message EncryptedResponse {
     // The encrypted data holds a JSON object.
-    // TODO document
     bytes payload = 1;
 }

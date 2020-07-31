@@ -29,3 +29,14 @@ pub fn encrypt(key: &RSAPublicKey, payload: &[u8]) -> Result<Vec<u8>, String> {
         .flat_map(|chunk| chunk.into_iter())
         .collect())
 }
+
+/// Verify a signature.
+pub fn verify_sig(key: &RSAPublicKey, payload: &[u8], signature: &[u8]) -> Result<(), String> {
+    let digest = Sha256::digest(payload).to_vec();
+    key.verify(
+        PaddingScheme::new_pkcs1v15_sign(Some(rsa::Hash::SHA2_256)),
+        &digest,
+        &signature,
+    )
+    .map_err(|err| format!("{:?}", err))
+}
