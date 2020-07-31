@@ -58,7 +58,9 @@ message GetProcessedBlockRequest {
 
 // A request thas has been signed by the client.
 message SignedRequest {
+    // See private/request.rs for details on the format of this JSON request.
     string json_request = 1;
+
     bytes signature = 2;
 }
 

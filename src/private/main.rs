@@ -7,10 +7,13 @@
 //! forwarded back to the mirror.
 
 mod crypto;
+mod request;
 
+use crate::request::SignedJsonRequest;
 use grpcio::{ChannelBuilder, ChannelCredentialsBuilder, RpcStatus, RpcStatusCode};
 use mc_common::logger::{create_app_logger, log, o, Logger};
 use mc_mobilecoind_api::mobilecoind_api_grpc::MobilecoindApiClient;
+use mc_mobilecoind_json::data_types::{JsonBlockDetailsResponse, JsonProcessedBlockResponse};
 use mc_mobilecoind_mirror::{
     mobilecoind_mirror_api::{EncryptedResponse, PollRequest, QueryRequest, QueryResponse},
     mobilecoind_mirror_api_grpc::MobilecoindMirrorClient,
@@ -260,7 +263,7 @@ fn process_request(
             mirror_request.block
         );
         let mobilecoind_response = mobilecoind_api_client.get_block(&mobilecoind_request)?;
-        log::info!(logger, "get_block({}) succeeded", mirror_request.block,);
+        log::info!(logger, "get_block({}) succeeded", mirror_request.block);
 
         mirror_response.set_get_block(mobilecoind_response);
         return Ok(mirror_response);
@@ -307,8 +310,62 @@ fn process_encrypted_request(
         return Ok(err_query_response);
     }
 
-    let data: &str = "bleh bleh bleh";
-    let encrypted_payload = crypto::encrypt(mirror_key, data.as_bytes()).map_err(|_err| {
+    let json_request: SignedJsonRequest = match serde_json::from_str(&signed_request.json_request) {
+        Ok(req) => req,
+        Err(err) => {
+            let mut err_query_response = QueryResponse::new();
+            err_query_response.set_error(format!("Error parsing JSON request: {}", err));
+            return Ok(err_query_response);
+        }
+    };
+
+    let json_response_result = match json_request {
+        SignedJsonRequest::GetProcessedBlock { block } => {
+            let mut mobilecoind_request = mc_mobilecoind_api::GetProcessedBlockRequest::new();
+            mobilecoind_request.set_monitor_id(monitor_id.to_vec());
+            mobilecoind_request.set_block(block);
+
+            log::debug!(
+                logger,
+                "Incoming get_processed_block({}, {}), forwarding to mobilecoind",
+                hex::encode(monitor_id),
+                block
+            );
+            let mobilecoind_response =
+                mobilecoind_api_client.get_processed_block(&mobilecoind_request)?;
+            log::info!(
+                logger,
+                "get_processed_block({}, {}) succeeded",
+                hex::encode(monitor_id),
+                block,
+            );
+
+            serde_json::to_vec(&JsonProcessedBlockResponse::from(&mobilecoind_response))
+        }
+
+        SignedJsonRequest::GetBlock { block } => {
+            let mut mobilecoind_request = mc_mobilecoind_api::GetBlockRequest::new();
+            mobilecoind_request.set_block(block);
+
+            log::debug!(
+                logger,
+                "Incoming get_block({}), forwarding to mobilecoind",
+                block
+            );
+            let mobilecoind_response = mobilecoind_api_client.get_block(&mobilecoind_request)?;
+            log::info!(logger, "get_block({}) succeeded", block);
+
+            serde_json::to_vec(&JsonBlockDetailsResponse::from(&mobilecoind_response))
+        }
+    };
+    let json_response = json_response_result.map_err(|err| {
+        grpcio::Error::RpcFailure(RpcStatus::new(
+            RpcStatusCode::INTERNAL,
+            Some(format!("json serialization error: {}", err)),
+        ))
+    })?;
+
+    let encrypted_payload = crypto::encrypt(mirror_key, &json_response).map_err(|_err| {
         grpcio::Error::RpcFailure(RpcStatus::new(
             RpcStatusCode::INTERNAL,
             Some("Encryption failed".into()),

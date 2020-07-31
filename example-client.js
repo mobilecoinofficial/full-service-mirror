@@ -34,7 +34,7 @@ if (test_data.length != KEY_SIZE) {
 }
 
 // Example request
-let request = JSON.stringify({a: 'b'});
+let request = JSON.stringify({GetBlock: {block: 0}});
 
 let signature = sign(request);
 let post_data = JSON.stringify({
