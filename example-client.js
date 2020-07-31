@@ -9,14 +9,21 @@ const http = require('http');
 const fs = require('fs');
 const crypto = require('crypto');
 
-// TODO: Command line parsing
-let key_file = 'beam-private.pem';
-let public_mirror_host  = '127.0.0.1';
-let public_mirror_port = 8001;
+// Command line parsing
+if (process.argv.length != 6) {
+    console.log(`Usage: node example-client.js <public mirror host> <public mirror port> <key file> <request>`);
+    console.log(`For example: node example-client.js 127.0.0.1 8001 mirror-client.pem '{"GetBlock": {"block": 0}}'`);
+    console.log('To generate keys please run generate-keys.js. See README.md for more details')
+    return;
+}
+
+let public_mirror_host = process.argv[2];
+let public_mirror_port = process.argv[3];
+let key_file = process.argv[4];
+let request = process.argv[5];
 
 // Load key
-// TODO: Make this a command line argument
-let key_bytes = fs.readFileSync('beam-private.pem')
+let key_bytes = fs.readFileSync(key_file)
 if (!key_bytes) {
     throw 'Failed loading key';
 }
@@ -33,9 +40,7 @@ if (test_data.length != KEY_SIZE) {
     throw `Key is not 4096-bit, encrypted output chunk size returned was ${test_data.length}`;
 }
 
-// Example request
-let request = JSON.stringify({GetBlock: {block: 0}});
-
+// Prepare request
 let signature = sign(request);
 let post_data = JSON.stringify({
     request: request,
