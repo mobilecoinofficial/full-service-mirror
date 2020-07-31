@@ -18,6 +18,7 @@ message QueryRequest {
     oneof request {
         GetProcessedBlockRequest get_processed_block = 1;
         mobilecoind_api.GetBlockRequest get_block = 2;
+        EncryptedRequest encrypted_request = 3;
     }
 }
 
@@ -26,7 +27,8 @@ message QueryResponse {
     oneof response {
         string error = 1;
         mobilecoind_api.GetProcessedBlockResponse get_processed_block = 2;
-        mobilecoind_api.GetBlockResponse get_block  = 3;
+        mobilecoind_api.GetBlockResponse get_block = 3;
+        EncryptedResponse encrypted_response = 4;
     }
 }
 
@@ -52,4 +54,18 @@ message PollResponse {
 message GetProcessedBlockRequest {
     // Block number to query.
     uint64 block = 1;
+}
+
+// A request thas has been encrypted end-to-end by the client.
+message EncryptedRequest {
+    // The encrypted data holds a JSON object.
+    // TODO document
+    bytes payload = 1;
+}
+
+// A response that has been encrypted end-to-end to be handed back to the client.
+message EncryptedResponse {
+    // The encrypted data holds a JSON object.
+    // TODO document
+    bytes payload = 1;
 }

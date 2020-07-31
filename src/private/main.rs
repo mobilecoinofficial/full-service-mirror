@@ -6,15 +6,19 @@
 //! requests which it then forwards to mobilecoind. When a response is received it is then
 //! forwarded back to the mirror.
 
+mod crypto;
+
 use grpcio::{ChannelBuilder, ChannelCredentialsBuilder, RpcStatus, RpcStatusCode};
 use mc_common::logger::{create_app_logger, log, o, Logger};
 use mc_mobilecoind_api::mobilecoind_api_grpc::MobilecoindApiClient;
 use mc_mobilecoind_mirror::{
-    mobilecoind_mirror_api::{PollRequest, QueryRequest, QueryResponse},
+    mobilecoind_mirror_api::{EncryptedResponse, PollRequest, QueryRequest, QueryResponse},
     mobilecoind_mirror_api_grpc::MobilecoindMirrorClient,
     uri::MobilecoindMirrorUri,
 };
 use mc_util_grpc::ConnectionUriGrpcioChannel;
+use rsa::RSAPublicKey;
+use std::convert::TryFrom;
 use std::{collections::HashMap, str::FromStr, sync::Arc, thread::sleep, time::Duration};
 use structopt::StructOpt;
 
@@ -60,6 +64,12 @@ pub struct Config {
     /// one monitor id that one would be automatically chosen.
     #[structopt(long)]
     pub monitor_id: Option<MonitorId>,
+
+    /// Optional encryption public key. If provided, all request types but EncryptedRequest are
+    /// disabled. See `example-client.js` for an example on how to submit encrypted requests
+    /// through the mirror.
+    #[structopt(long, parse(try_from_str=load_public_key))]
+    pub mirror_key: Option<RSAPublicKey>,
 }
 
 fn main() {
@@ -147,22 +157,44 @@ fn main() {
                 for (query_id, query_request) in response.query_requests.iter() {
                     let query_logger = logger.new(o!("query_id" => query_id.clone()));
 
-                    pending_responses.insert(
-                        query_id.clone(),
-                        process_request(
-                            &mobilecoind_api_client,
-                            &monitor_id,
-                            query_request,
-                            &query_logger,
-                        )
-                        .unwrap_or_else(|err| {
-                            log::error!(query_logger, "process_request failed: {:?}", err);
+                    let response = {
+                        if let Some(mirror_key) = config.mirror_key.as_ref() {
+                            process_encrypted_request(
+                                &mobilecoind_api_client,
+                                &monitor_id,
+                                mirror_key,
+                                query_request,
+                                &query_logger,
+                            )
+                            .unwrap_or_else(|err| {
+                                log::error!(
+                                    query_logger,
+                                    "process_encrypted_request failed: {:?}",
+                                    err
+                                );
 
-                            let mut err_query_response = QueryResponse::new();
-                            err_query_response.set_error(err.to_string());
-                            err_query_response
-                        }),
-                    );
+                                let mut err_query_response = QueryResponse::new();
+                                err_query_response.set_error(err.to_string());
+                                err_query_response
+                            })
+                        } else {
+                            process_request(
+                                &mobilecoind_api_client,
+                                &monitor_id,
+                                query_request,
+                                &query_logger,
+                            )
+                            .unwrap_or_else(|err| {
+                                log::error!(query_logger, "process_request failed: {:?}", err);
+
+                                let mut err_query_response = QueryResponse::new();
+                                err_query_response.set_error(err.to_string());
+                                err_query_response
+                            })
+                        }
+                    };
+
+                    pending_responses.insert(query_id.clone(), response);
                 }
             }
 
@@ -238,6 +270,45 @@ fn process_request(
     )))
 }
 
+fn process_encrypted_request(
+    mobilecoind_api_client: &MobilecoindApiClient,
+    monitor_id: &[u8],
+    mirror_key: &RSAPublicKey,
+    query_request: &QueryRequest,
+    logger: &Logger,
+) -> grpcio::Result<QueryResponse> {
+    if !query_request.has_encrypted_request() {
+        return Err(grpcio::Error::RpcFailure(RpcStatus::new(
+            RpcStatusCode::INTERNAL,
+            Some("Only processing encrypted requests".into()),
+        )));
+    }
+
+    let data: &str = "bleh bleh bleh";
+    let encrypted_payload = crypto::encrypt(mirror_key, data.as_bytes()).map_err(|_err| {
+        grpcio::Error::RpcFailure(RpcStatus::new(
+            RpcStatusCode::INTERNAL,
+            Some("Encryption failed".into()),
+        ))
+    })?;
+
+    let mut encrypted_response = EncryptedResponse::new();
+    encrypted_response.set_payload(encrypted_payload);
+
+    let mut mirror_response = QueryResponse::new();
+    mirror_response.set_encrypted_response(encrypted_response);
+    Ok(mirror_response)
+}
+
 fn parse_duration_in_milliseconds(src: &str) -> Result<Duration, std::num::ParseIntError> {
     Ok(Duration::from_millis(u64::from_str(src)?))
+}
+
+fn load_public_key(src: &str) -> Result<RSAPublicKey, String> {
+    let key_str = std::fs::read_to_string(src)
+        .map_err(|err| format!("failed reading key file {}: {:?}", src, err))?;
+    let pem = pem::parse(&key_str)
+        .map_err(|err| format!("failed parsing key file {}: {:?}", src, err))?;
+    Ok(RSAPublicKey::try_from(pem)
+        .map_err(|err| format!("failed loading key file {}: {:?}", src, err))?)
 }

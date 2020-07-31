@@ -16,7 +16,7 @@ use mc_common::logger::{create_app_logger, log, o, Logger};
 use mc_mobilecoind_api::GetBlockRequest;
 use mc_mobilecoind_json::data_types::{JsonBlockDetailsResponse, JsonProcessedBlockResponse};
 use mc_mobilecoind_mirror::{
-    mobilecoind_mirror_api::{GetProcessedBlockRequest, QueryRequest},
+    mobilecoind_mirror_api::{EncryptedRequest, GetProcessedBlockRequest, QueryRequest},
     uri::MobilecoindMirrorUri,
 };
 use mc_util_grpc::{BuildInfoService, ConnectionUriGrpcioServer, HealthService};
@@ -25,7 +25,7 @@ use mirror_service::MirrorService;
 use query::QueryManager;
 use rocket::{
     config::{Config as RocketConfig, Environment as RocketEnvironment},
-    get, routes,
+    get, post, routes,
 };
 use rocket_contrib::json::Json;
 use std::sync::Arc;
@@ -159,6 +159,53 @@ fn block(
     Ok(Json(JsonBlockDetailsResponse::from(response)))
 }
 
+#[post("/encrypted-request", data = "<payload>")]
+fn encrypted_request(state: rocket::State<State>, payload: Vec<u8>) -> Result<Vec<u8>, String> {
+    let payload_len = payload.len();
+    // TODO hash payload for logging purposes.
+
+    let mut encrypted_request = EncryptedRequest::new();
+    encrypted_request.set_payload(payload);
+
+    let mut query_request = QueryRequest::new();
+    query_request.set_encrypted_request(encrypted_request);
+
+    log::debug!(
+        state.logger,
+        "Enqueueing EncryptedRequest({} bytes)",
+        payload_len
+    );
+    let query = state.query_manager.enqueue_query(query_request);
+    let query_response = query.wait()?;
+
+    if query_response.has_error() {
+        log::error!(
+            state.logger,
+            "EncryptedRequest({} bytes) failed: {}",
+            payload_len,
+            query_response.get_error()
+        );
+        return Err(query_response.get_error().into());
+    }
+    if !query_response.has_encrypted_response() {
+        log::error!(
+            state.logger,
+            "EncryptedRequest({}) returned incorrect response type",
+            payload_len,
+        );
+        return Err("Incorrect response type received".into());
+    }
+
+    log::info!(
+        state.logger,
+        "EncryptedRequest({}) completed successfully",
+        payload_len,
+    );
+
+    let response = query_response.get_encrypted_response();
+    Ok(response.get_payload().to_vec())
+}
+
 fn main() {
     mc_common::setup_panic_handler();
     let _sentry_guard = mc_common::sentry::init();
@@ -229,7 +276,7 @@ fn main() {
 
     log::info!(logger, "Starting client web server");
     rocket::custom(rocket_config)
-        .mount("/", routes![processed_block, block])
+        .mount("/", routes![processed_block, block, encrypted_request])
         .manage(State {
             query_manager,
             logger,
