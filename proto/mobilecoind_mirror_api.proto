@@ -18,6 +18,7 @@ message QueryRequest {
     oneof request {
         GetProcessedBlockRequest get_processed_block = 1;
         mobilecoind_api.GetBlockRequest get_block = 2;
+        SignedRequest signed_request = 3;
     }
 }
 
@@ -26,7 +27,8 @@ message QueryResponse {
     oneof response {
         string error = 1;
         mobilecoind_api.GetProcessedBlockResponse get_processed_block = 2;
-        mobilecoind_api.GetBlockResponse get_block  = 3;
+        mobilecoind_api.GetBlockResponse get_block = 3;
+        EncryptedResponse encrypted_response = 4;
     }
 }
 
@@ -52,4 +54,18 @@ message PollResponse {
 message GetProcessedBlockRequest {
     // Block number to query.
     uint64 block = 1;
+}
+
+// A request thas has been signed by the client.
+message SignedRequest {
+    // See private/request.rs for details on the format of this JSON request.
+    string json_request = 1;
+
+    bytes signature = 2;
+}
+
+// A response that has been encrypted, to be handed back to the client.
+message EncryptedResponse {
+    // The encrypted data holds a JSON object.
+    bytes payload = 1;
 }

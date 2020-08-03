@@ -23,16 +23,24 @@ mc-mobilecoind-json = { path = "mobilecoin/mobilecoind-json" }
 mc-util-grpc = { path = "mobilecoin/util/grpc" }
 mc-util-uri = { path = "mobilecoin/util/uri" }
 
+digest = "0.9.0"
 futures = "0.1"
+generic-array = "0.12"
 grpcio = "0.5.1"
 hex = "0.4"
+pem = "0.8.1"
+protobuf = "2.12"
 rand = "0.7"
 rocket = { version = "0.4.5", default-features = false }
 rocket_contrib = { version = "0.4.5", default-features = false, features = ["json"] }
 serde = "1.0"
 serde_derive = "1.0"
+serde_json = "1.0"
+sha2 = "0.9.1"
 structopt = "0.3"
-protobuf = "2.12"
+
+# We need a specific commit since a version supporting reading PEM files has not been officially released yet.
+rsa = { git = "https://github.com/RustCrypto/RSA", rev = "4274e838d112a0aa194a2102ed4930fd9797f1eb" }
 
 [build-dependencies]
 # Even though this is unused, it needs to be here otherwise Cargo brings in some weird mixture of packages/features that refuses to compile.
