@@ -10,9 +10,9 @@ mod crypto;
 mod request;
 
 use crate::request::SignedJsonRequest;
-use grpcio::{ChannelBuilder, ChannelCredentialsBuilder, RpcStatus, RpcStatusCode};
+use grpcio::{ChannelBuilder, RpcStatus, RpcStatusCode};
 use mc_common::logger::{create_app_logger, log, o, Logger};
-use mc_mobilecoind_api::mobilecoind_api_grpc::MobilecoindApiClient;
+use mc_mobilecoind_api::{mobilecoind_api_grpc::MobilecoindApiClient, MobilecoindUri};
 use mc_mobilecoind_json::data_types::{JsonBlockDetailsResponse, JsonProcessedBlockResponse};
 use mc_mobilecoind_mirror::{
     mobilecoind_mirror_api::{EncryptedResponse, PollRequest, QueryRequest, QueryResponse},
@@ -49,12 +49,8 @@ impl FromStr for MonitorId {
 )]
 pub struct Config {
     /// MobileCoinD URI.
-    #[structopt(long, default_value = "127.0.0.1:4444")]
-    pub mobilecoind_host: String,
-
-    /// Use SSL when connecting to mobilecoind.
-    #[structopt(long)]
-    pub mobilecoind_ssl: bool,
+    #[structopt(long, default_value = "insecure-mobilecoind://127.0.0.1/")]
+    pub mobilecoind_uri: MobilecoindUri,
 
     /// URI for the public side of the mirror.
     #[structopt(long)]
@@ -87,22 +83,16 @@ fn main() {
         logger,
         "Starting mobilecoind mirror private forwarder on {}, connecting to mobilecoind {}",
         config.mirror_public_uri,
-        config.mobilecoind_host
+        config.mobilecoind_uri,
     );
 
     // Set up the gRPC connection to the mobilecoind client
     let mobilecoind_api_client = {
         let env = Arc::new(grpcio::EnvBuilder::new().build());
-        let ch_builder = ChannelBuilder::new(env)
+        let ch = ChannelBuilder::new(env)
             .max_receive_message_len(std::i32::MAX)
-            .max_send_message_len(std::i32::MAX);
-
-        let ch = if config.mobilecoind_ssl {
-            let creds = ChannelCredentialsBuilder::new().build();
-            ch_builder.secure_connect(&config.mobilecoind_host, creds)
-        } else {
-            ch_builder.connect(&config.mobilecoind_host)
-        };
+            .max_send_message_len(std::i32::MAX)
+            .connect_to_uri(&config.mobilecoind_uri, &logger);
 
         MobilecoindApiClient::new(ch)
     };
