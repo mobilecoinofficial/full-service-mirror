@@ -350,7 +350,7 @@ version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fce5b5fb86b0c57c20c834c1b412fd09c77c8a59b9473f86272709e78874cd1d"
 dependencies = [
- "nom",
+ "nom 4.2.3",
 ]
 
 [[package]]
@@ -596,6 +596,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "data-encoding"
+version = "2.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d4d0e2d24e5ee3b23a01de38eefdcd978907890701f08ffffd4cb457ca4ee8d6"
+
+[[package]]
 name = "debugid"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -603,6 +609,32 @@ checksum = "f91cf5a8c2f2097e2a32627123508635d47ce10563d999ec1a95addf08b502ba"
 dependencies = [
  "serde",
  "uuid",
+]
+
+[[package]]
+name = "der-oid-macro"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e66558629d772c3be040566b7be07be8c8f5aecee95e4a092dfe2efc313277ad"
+dependencies = [
+ "nom 5.1.2",
+ "num-bigint 0.3.0",
+ "num-traits",
+ "proc-macro-hack",
+]
+
+[[package]]
+name = "der-parser"
+version = "4.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c97e68dc033b340ff19244dd3caa94c6148383711361d5e3c74f64175760a93c"
+dependencies = [
+ "der-oid-macro",
+ "nom 5.1.2",
+ "num-bigint 0.3.0",
+ "num-traits",
+ "proc-macro-hack",
+ "rusticata-macros",
 ]
 
 [[package]]
@@ -1372,6 +1404,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b294d6fa9ee409a054354afc4352b0b9ef7ca222c69b8812cbea9e7d2bf3783f"
 
 [[package]]
+name = "lexical-core"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "db65c6da02e61f55dae90a0ae427b2a5f6b3e8db09f58d10efab23af92592616"
+dependencies = [
+ "arrayvec",
+ "bitflags",
+ "cfg-if",
+ "ryu",
+ "static_assertions",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1652,7 +1697,7 @@ dependencies = [
 
 [[package]]
 name = "mc-mobilecoind-mirror"
-version = "0.6.0"
+version = "0.6.0-pre1"
 dependencies = [
  "cargo-emit",
  "digest 0.9.0",
@@ -1679,6 +1724,7 @@ dependencies = [
  "serde_json",
  "sha2 0.9.1",
  "structopt",
+ "x509-parser",
 ]
 
 [[package]]
@@ -1950,6 +1996,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "nom"
+version = "5.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ffb4262d26ed83a1c0a33a38fe2bb15797329c85770da05e6b828ddb782627af"
+dependencies = [
+ "lexical-core",
+ "memchr",
+ "version_check 0.9.1",
+]
+
+[[package]]
 name = "notify"
 version = "4.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1972,6 +2029,17 @@ name = "num-bigint"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "090c7f9998ee0ff65aa5b723e4009f7b217707f1fb5ea551329cc4d6231fb304"
+dependencies = [
+ "autocfg 1.0.0",
+ "num-integer",
+ "num-traits",
+]
+
+[[package]]
+name = "num-bigint"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b7f3fc75e3697059fb1bc465e3d8cca6cf92f56854f201158b3f9c77d5a3cfa0"
 dependencies = [
  "autocfg 1.0.0",
  "num-integer",
@@ -2751,6 +2819,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rusticata-macros"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8a9050636e8a1b487ba1fbe99114021cd7594dde3ce6ed95bfc1691e5b5367b"
+dependencies = [
+ "nom 5.1.2",
+]
+
+[[package]]
 name = "rustls"
 version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2773,6 +2850,17 @@ dependencies = [
  "rustls",
  "schannel",
  "security-framework",
+]
+
+[[package]]
+name = "rustversion"
+version = "1.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b9bdc5e856e51e685846fb6c13a1f5e5432946c2c90501bdc76a1319f19e29da"
+dependencies = [
+ "proc-macro2 1.0.12",
+ "quote 1.0.4",
+ "syn 1.0.18",
 ]
 
 [[package]]
@@ -3026,7 +3114,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "692ca13de57ce0613a363c8c2f1de925adebc81b04c923ac60c5488bb44abe4b"
 dependencies = [
  "chrono",
- "num-bigint",
+ "num-bigint 0.2.6",
  "num-traits",
 ]
 
@@ -3190,6 +3278,12 @@ name = "state"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7345c971d1ef21ffdbd103a75990a15eb03604fc8b8852ca8cb418ee1a099028"
+
+[[package]]
+name = "static_assertions"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "strsim"
@@ -3795,6 +3889,24 @@ dependencies = [
  "curve25519-dalek",
  "rand_core 0.5.1",
  "zeroize",
+]
+
+[[package]]
+name = "x509-parser"
+version = "0.8.0-beta4"
+source = "git+https://github.com/rusticata/x509-parser.git?rev=de244d2c66e8d929612f9c849c358e2b3f2dd675#de244d2c66e8d929612f9c849c358e2b3f2dd675"
+dependencies = [
+ "base64 0.12.1",
+ "chrono",
+ "data-encoding",
+ "der-oid-macro",
+ "der-parser",
+ "lazy_static",
+ "nom 5.1.2",
+ "num-bigint 0.3.0",
+ "ring",
+ "rusticata-macros",
+ "rustversion",
 ]
 
 [[package]]

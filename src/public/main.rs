@@ -10,6 +10,7 @@
 
 mod mirror_service;
 mod query;
+mod utils;
 
 use grpcio::{EnvBuilder, ServerBuilder};
 use mc_common::logger::{create_app_logger, log, o, Logger};
@@ -23,13 +24,14 @@ use mc_util_grpc::{BuildInfoService, ConnectionUriGrpcioServer, HealthService};
 use mc_util_uri::{ConnectionUri, Uri, UriScheme};
 use mirror_service::MirrorService;
 use query::QueryManager;
-use rocket::http::Status;
-use rocket::response::Responder;
 use rocket::{
     config::{Config as RocketConfig, Environment as RocketEnvironment},
-    get, post, routes,
+    get,
+    http::Status,
+    post,
+    response::Responder,
+    routes, Request, Response,
 };
-use rocket::{Request, Response};
 use rocket_contrib::json::Json;
 use serde::Deserialize;
 use std::sync::Arc;
@@ -69,6 +71,10 @@ pub struct Config {
     /// This controls how many concurrent requests the server can process.
     #[structopt(long)]
     pub num_workers: Option<u16>,
+
+    /// Allow using self-signed TLS certificate for GRPC connections.
+    #[structopt(long)]
+    pub allow_self_signed_tls: bool,
 }
 
 /// State that is accessible by all rocket requests
@@ -247,6 +253,11 @@ fn main() {
     let _sentry_guard = mc_common::sentry::init();
 
     let config = Config::from_args();
+    if !config.allow_self_signed_tls
+        && utils::is_tls_self_signed(&config.mirror_listen_uri).expect("is_tls_self_signed failed")
+    {
+        panic!("Refusing to start with self-signed TLS certificate. Use --allow-self-signed-tls to override this check.");
+    }
 
     let (logger, _global_logger_guard) = create_app_logger(o!());
     log::info!(
