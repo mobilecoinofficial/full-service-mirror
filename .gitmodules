@@ -1,3 +1,4 @@
 [submodule "mobilecoin"]
 	path = mobilecoin
 	url = https://github.com/mobilecoinofficial/mobilecoin
+	branch = master
