@@ -4,6 +4,7 @@
 
 syntax = "proto3";
 import "mobilecoind_api.proto";
+import "google/protobuf/empty.proto";
 
 package mobilecoind_mirror_api;
 
@@ -18,7 +19,9 @@ message QueryRequest {
     oneof request {
         GetProcessedBlockRequest get_processed_block = 1;
         mobilecoind_api.GetBlockRequest get_block = 2;
-        SignedRequest signed_request = 3;
+        mobilecoind_api.GetBlockInfoRequest get_block_info = 3;
+        google.protobuf.Empty get_ledger_info = 4;
+        SignedRequest signed_request = 5;
     }
 }
 
@@ -28,9 +31,13 @@ message QueryResponse {
         string error = 1;
         mobilecoind_api.GetProcessedBlockResponse get_processed_block = 2;
         mobilecoind_api.GetBlockResponse get_block = 3;
-        EncryptedResponse encrypted_response = 4;
+        mobilecoind_api.GetBlockInfoResponse get_block_info = 4;
+        mobilecoind_api.GetLedgerInfoResponse get_ledger_info = 5;
+        EncryptedResponse encrypted_response = 6;
     }
 }
+
+//
 
 // A polling request (sent from the private side to the public side) includes responses to queries.
 message PollRequest {
