@@ -17,11 +17,11 @@ service MobilecoindMirror {
 // A single query request.
 message QueryRequest {
     oneof request {
-        GetProcessedBlockRequest get_processed_block = 1;
-        mobilecoind_api.GetBlockRequest get_block = 2;
-        mobilecoind_api.GetBlockInfoRequest get_block_info = 3;
-        google.protobuf.Empty get_ledger_info = 4;
-        SignedRequest signed_request = 5;
+        SignedRequest signed_request = 1;
+        GetProcessedBlockRequest get_processed_block = 2;
+        mobilecoind_api.GetBlockRequest get_block = 3;
+        mobilecoind_api.GetBlockInfoRequest get_block_info = 4;
+        google.protobuf.Empty get_ledger_info = 5;
     }
 }
 
@@ -29,11 +29,11 @@ message QueryRequest {
 message QueryResponse {
     oneof response {
         string error = 1;
-        mobilecoind_api.GetProcessedBlockResponse get_processed_block = 2;
-        mobilecoind_api.GetBlockResponse get_block = 3;
-        mobilecoind_api.GetBlockInfoResponse get_block_info = 4;
-        mobilecoind_api.GetLedgerInfoResponse get_ledger_info = 5;
-        EncryptedResponse encrypted_response = 6;
+        EncryptedResponse encrypted_response = 2;
+        mobilecoind_api.GetProcessedBlockResponse get_processed_block = 3;
+        mobilecoind_api.GetBlockResponse get_block = 4;
+        mobilecoind_api.GetBlockInfoResponse get_block_info = 5;
+        mobilecoind_api.GetLedgerInfoResponse get_ledger_info = 6;
     }
 }
 
