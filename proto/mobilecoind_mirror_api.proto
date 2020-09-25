@@ -15,6 +15,7 @@ service MobilecoindMirror {
 }
 
 // A single query request.
+// When adding request types, remember to add them in `src/private/request.rs` as well.
 message QueryRequest {
     oneof request {
         SignedRequest signed_request = 1;

@@ -9,4 +9,6 @@ use serde_derive::Deserialize;
 pub enum SignedJsonRequest {
     GetProcessedBlock { block: u64 },
     GetBlock { block: u64 },
+    GetBlockInfo { block: u64 },
+    GetLedgerInfo,
 }
