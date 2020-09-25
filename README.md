@@ -143,7 +143,7 @@ Notice that the `mirror-listen-uri` has been changed from `insecure-mobilecoind-
 
 The private side of the bridge also needs to be aware that TLS is now used:
 ```
-cargo run -p mc-mobilecoind-mirror --bin mobilecoind-mirror-private -- --mirror-public-uri 'mobilecoind-mirror://localhost/?ca-bundle=server.crt' --mobilecoind-host localhost:4444
+cargo run -p mc-mobilecoind-mirror --bin mobilecoind-mirror-private -- --mirror-public-uri 'mobilecoind-mirror://localhost/?ca-bundle=server.crt' --mobilecoind-uri insecure-mobilecoind://localhost:4444/
 ```
 
 Notice that the `mirror-public-uri` parameter has changed to reflect the TLS certificate chain.
@@ -161,7 +161,7 @@ In order to use this mode, follow the following steps.
 1) Ensure that you have NodeJS installed. **The minimum supported version is v12.9.0** (`node -v`)
 1) Generate a keypair: `node generate-keys.js`. This will generate two files: `mirror-client.pem` and `mirror-private.pem`.
 1) Run the public side of the mirror as usual, for example: `cargo run -p mc-mobilecoind-mirror --bin mobilecoind-mirror-public -- --client-listen-uri http://0.0.0.0:8001/ --mirror-listen-uri insecure-mobilecoind-mirror://127.0.0.1/`
-1) Copy the `mirror-private.pem` file to where you would be running the private side of the mirror, and run it: `cargo run -p mc-mobilecoind-mirror --bin mobilecoind-mirror-private -- --mirror-public-uri insecure-mobilecoind-mirror://127.0.0.1/ --mobilecoind-host localhost:4444 --mirror-key mirror-private.pem`. Notice the addition of the `--mirror-key` argument.
+1) Copy the `mirror-private.pem` file to where you would be running the private side of the mirror, and run it: `cargo run -p mc-mobilecoind-mirror --bin mobilecoind-mirror-private -- --mirror-public-uri insecure-mobilecoind-mirror://127.0.0.1/ --mobilecoind-uri insecure-mobilecoind://localhost:4444/ --mirror-key mirror-private.pem`. Notice the addition of the `--mirror-key` argument.
 1) Issue a response using the sample client:
    - To get block data: `node example-client.js 127.0.0.1 8001 mirror-client.pem '{"GetBlock": {"block": 0}}'`
    - To get processed block data: node example-client.js 127.0.0.1 8001 mirror-client.pem '{"GetProcessedBlock": {"block": 33826}}'`

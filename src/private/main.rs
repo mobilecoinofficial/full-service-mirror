@@ -13,7 +13,10 @@ use crate::request::SignedJsonRequest;
 use grpcio::{ChannelBuilder, RpcStatus, RpcStatusCode};
 use mc_common::logger::{create_app_logger, log, o, Logger};
 use mc_mobilecoind_api::{mobilecoind_api_grpc::MobilecoindApiClient, MobilecoindUri};
-use mc_mobilecoind_json::data_types::{JsonBlockDetailsResponse, JsonProcessedBlockResponse};
+use mc_mobilecoind_json::data_types::{
+    JsonBlockDetailsResponse, JsonBlockInfoResponse, JsonLedgerInfoResponse,
+    JsonProcessedBlockResponse,
+};
 use mc_mobilecoind_mirror::{
     mobilecoind_mirror_api::{EncryptedResponse, PollRequest, QueryRequest, QueryResponse},
     mobilecoind_mirror_api_grpc::MobilecoindMirrorClient,
@@ -261,7 +264,7 @@ fn process_request(
 
     // GetBlockInfoRequest
     if query_request.has_get_block_info() {
-        let mirror_request = query_request.get_get_block();
+        let mirror_request = query_request.get_get_block_info();
         let mut mobilecoind_request = mc_mobilecoind_api::GetBlockInfoRequest::new();
         mobilecoind_request.set_block(mirror_request.block);
 
@@ -378,6 +381,34 @@ fn process_encrypted_request(
             log::info!(logger, "get_block({}) succeeded", block);
 
             serde_json::to_vec(&JsonBlockDetailsResponse::from(&mobilecoind_response))
+        }
+
+        SignedJsonRequest::GetBlockInfo { block } => {
+            let mut mobilecoind_request = mc_mobilecoind_api::GetBlockInfoRequest::new();
+            mobilecoind_request.set_block(block);
+
+            log::debug!(
+                logger,
+                "Incoming get_block_info({}), forwarding to mobilecoind",
+                block
+            );
+            let mobilecoind_response =
+                mobilecoind_api_client.get_block_info(&mobilecoind_request)?;
+            log::info!(logger, "get_block_info({}) succeeded", block);
+
+            serde_json::to_vec(&JsonBlockInfoResponse::from(&mobilecoind_response))
+        }
+
+        SignedJsonRequest::GetLedgerInfo => {
+            log::debug!(
+                logger,
+                "Incoming get_ledger_info(), forwarding to mobilecoind",
+            );
+            let mobilecoind_response =
+                mobilecoind_api_client.get_ledger_info(&mc_mobilecoind_api::Empty::new())?;
+            log::info!(logger, "get_ledger_info() succeeded");
+
+            serde_json::to_vec(&JsonLedgerInfoResponse::from(&mobilecoind_response))
         }
     };
     let json_response = json_response_result.map_err(|err| {

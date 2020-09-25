@@ -15,12 +15,12 @@ if [ ! -f "mirror-private.pem" ]; then
 fi
 
 
-./bin/mobilecoind --ledger-db /tmp/mobilecoin/0.6.0/ledger \
+./bin/mobilecoind --ledger-db /tmp/mobilecoin/VERSION/ledger \
       --poll-interval 1 \
       --peer mc://node1.test.mobilecoin.com/ \
       --peer mc://node2.test.mobilecoin.com/ \
       --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
-      --mobilecoind-db /tmp/mobilecoin/0.6.0/wallet \
+      --mobilecoind-db /tmp/mobilecoin/VERSION/wallet \
       --listen-uri insecure-mobilecoind://127.0.0.1:4444/ > /tmp/mobilecoind.log 2>&1 &
 echo "Daemon is starting up (5 seconds)"
 sleep 5
