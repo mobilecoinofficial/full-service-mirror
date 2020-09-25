@@ -34,9 +34,9 @@ curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${SIGSTRUCT_URI
 TARGETDIR=${MOBILECOIN_ROOT}/target/release
 
 echo "Building mobilecoind and mobilecoind-json"
-#SGX_MODE=${SGX_MODE} IAS_MODE=${IAS_MODE} \
-#  CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css \
-#  cargo build --release -p mc-mobilecoind -p mc-mobilecoind-json
+SGX_MODE=${SGX_MODE} IAS_MODE=${IAS_MODE} \
+  CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css \
+  cargo build --release -p mc-mobilecoind -p mc-mobilecoind-json
 
 popd
 
@@ -48,7 +48,7 @@ cargo build --release -p mc-mobilecoind-mirror \
 MIRROR_TARGETDIR=${MIRROR_ROOT}/target/release
 
 # Remove artifacts from previous test runs
-# rm -rf /tmp/ledger-db /tmp/mobilecoind-db $(pwd)/mobilecoin.log $(pwd)/mobilecoind-json.log
+rm -rf /tmp/ledger-db /tmp/mobilecoind-db $(pwd)/mobilecoin.log $(pwd)/mobilecoind-json.log
 
 # Start mobilecoind
 echo "Starting local mobilecoind using ${NAMESPACE} servers for source of ledger. Check log at $(pwd)/mobilecoind.log."
