@@ -41,9 +41,9 @@ echo "Building mobilecoind and mobilecoind-json"
 popd
 
 echo "Building mobilecoind-mirror"
-#cargo build --release -p mc-mobilecoind-mirror \
-#  --bin mobilecoind-mirror-private \
-#  --bin mobilecoind-mirror-public
+cargo build --release -p mc-mobilecoind-mirror \
+  --bin mobilecoind-mirror-private \
+  --bin mobilecoind-mirror-public
 
 MIRROR_TARGETDIR=${MIRROR_ROOT}/target/release
 
@@ -70,24 +70,27 @@ ${TARGETDIR}/mobilecoind-json &> $(pwd)/mobilecoind-json.log &
 
 mj_pid=$!
 
-# Wait for mobilecoind-json to be live
-sleep 2
+# Start mobilecoind-mirror
+${MIRROR_TARGETDIR}/mobilecoind-mirror-public \
+  --client-listen-uri http://0.0.0.0:8001/ \
+  --mirror-listen-uri "insecure-mobilecoind-mirror://0.0.0.0/" &> mirror-public.log &
+
+mpub_pid=$!
+
+${MIRROR_TARGETDIR}/mobilecoind-mirror-private \
+  --mirror-public-uri insecure-mobilecoind-mirror://127.0.0.1/ \
+  --mobilecoind-uri insecure-mobilecoind://127.0.0.1:4444/ &> mirror-private.log &
+
+mpriv_pid=$!
+
+# Wait for mobilecoind-json and mirror to be live
+sleep 5
 
 source ${RELEASE_DIR}/assert.sh
 
 failure_count=0
 
-# Wait for mobilecoind to sync the ledger.
-block_height=$(curl -s localhost:9090/ledger/local)
-if [[ $(echo $block_height | jq '.block_count?') != 'null' ]] \
-  && [[ $(echo $block_height | jq '.txo_count?') != 'null' ]]; then
-  log_success "block_height"
-else
-  log_failure "block_height"
-  failure_count=$(( $failure_count + 1 ))
-fi
-
-# FIXME: assert block_height > 0?
+# FIXME: Wait for mobilecoind to sync the ledger
 
 # Generate a new entropy
 entropy=$(curl -s localhost:9090/entropy -X POST)
@@ -224,6 +227,16 @@ else
   failure_count=$(( $failure_count + 1 ))
 fi
 
+# Ledger info
+block_height=$(curl -s localhost:9090/ledger/local)
+if [[ $(echo $block_height | jq '.block_count?') != 'null' ]] \
+  && [[ $(echo $block_height | jq '.txo_count?') != 'null' ]]; then
+  log_success "block_height"
+else
+  log_failure "block_height"
+  failure_count=$(( $failure_count + 1 ))
+fi
+
 # Counts for a specific block
 counts=$(curl -s localhost:9090/ledger/blocks/1/header)
 if [[ $(echo $counts | jq '.key_image_count?') != 'null' ]] \
@@ -249,16 +262,52 @@ else
 fi
 
 # Offline UTXOS
-utxos=$(curl -s localhost:9090/monitors/$monitor_id/subaddresses/0/utxos)
-# FIXME: check contents
+#utxos=$(curl -s localhost:9090/monitors/$monitor_id/subaddresses/0/utxos)
+## FIXME: check contents
+#
+#utxo=$(echo $utxos | jq '.output_list[0]')
+#proposal=$(curl -s localhost:9090/monitors/$monitor-id/subaddresses/0/generate-tx \
+#  -d '{"input_list": ['$utxo'], "transfer": '$request_data'}' \
+#  -X POST -H 'Content-Type: application/json')
+## FIXME: Getting empty return
 
-utxo=$(echo $utxos | jq '.output_list[0]')
-propsoal=$(curl -s localhost:9090/monitors/$monitor-id/subaddresses/0/generate-tx \
-  -d '{"input_list": ['$utxo'], "transfer": '$request_data'}' \
-  -X POST -H 'Content-Type: application/json')
+# Hit the mirror endpoints
+# Ledger info
+block_height=$(curl -s localhost:8001/ledger/local)
+if [[ $(echo $block_height | jq '.block_count?') != 'null' ]] \
+  && [[ $(echo $block_height | jq '.txo_count?') != 'null' ]]; then
+  log_success "block_height"
+else
+  log_failure "block_height"
+  failure_count=$(( $failure_count + 1 ))
+fi
 
-for pid in $m_pid $mj_pid; do
-  wait  $pid
+# Counts for a specific block
+counts=$(curl -s localhost:8001/ledger/blocks/1/header)
+if [[ $(echo $counts | jq '.key_image_count?') != 'null' ]] \
+  && [[ $(echo $counts | jq '.txo_count?') != 'null' ]]; then
+  log_success "counts"
+else
+  log_failure "counts"
+  failure_count=$(( $failure_count + 1 ))
+fi
+
+# Details for a specific block
+details=$(curl -s localhost:8001/ledger/blocks/1)
+if [[ $(echo $details | jq '.block_id?') != 'null' ]] \
+  && [[ $(echo $details | jq '.version?') != 'null' ]] \
+  && [[ $(echo $details | jq '.parent_id?') != 'null' ]] \
+  && [[ $(echo $details | jq '.index?') != 'null' ]] \
+  && [[ $(echo $details | jq '.cumulative_txo_count?') != 'null' ]] \
+  && [[ $(echo $details | jq '.contents_hash?') != 'null' ]]; then
+  log_success "details"
+else
+  log_failure "details"
+  failure_count=$(( $failure_count + 1 ))
+fi
+
+for pid in $m_pid $mj_pid $mpub_pid $mpriv_pid; do
+  wait $pid
 done
 
 popd
