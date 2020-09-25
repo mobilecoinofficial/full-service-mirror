@@ -6,7 +6,7 @@
 #
 # Usage:
 #
-# `./07-linux-client.sh`
+# `./build-mobilecoind-release.sh`
 
 set -ex
 
@@ -16,7 +16,7 @@ pushd "$(dirname "$0")"
 
 pushd ../../
 MIRROR_ROOT=$(pwd)
-MOBILECOIN_ROOT=$(pwd)/public
+MOBILECOIN_ROOT=$(pwd)/mobilecoin
 
 # Input Vars
 : TAG_DATE=${TAG_DATE:?"Must set TAG_DATE to determine release-artifacts location"}
