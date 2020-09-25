@@ -37,8 +37,6 @@ message QueryResponse {
     }
 }
 
-//
-
 // A polling request (sent from the private side to the public side) includes responses to queries.
 message PollRequest {
     // Map of query id -> response.

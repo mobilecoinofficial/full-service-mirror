@@ -283,7 +283,8 @@ fn process_request(
             logger,
             "Incoming get_ledger_info, forwarding to mobilecoind",
         );
-        let mobilecoind_response = mobilecoind_api_client.get_ledger_info(&mc_mobilecoind_api::Empty::new())?;
+        let mobilecoind_response =
+            mobilecoind_api_client.get_ledger_info(&mc_mobilecoind_api::Empty::new())?;
         log::info!(logger, "get_ledger_info succeeded");
 
         mirror_response.set_get_ledger_info(mobilecoind_response);

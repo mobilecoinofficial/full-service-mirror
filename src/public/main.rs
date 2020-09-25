@@ -14,8 +14,11 @@ mod utils;
 
 use grpcio::{EnvBuilder, ServerBuilder};
 use mc_common::logger::{create_app_logger, log, o, Logger};
-use mc_mobilecoind_api::{Empty, GetBlockRequest, GetBlockInfoRequest};
-use mc_mobilecoind_json::data_types::{JsonBlockDetailsResponse, JsonLedgerInfoResponse, JsonBlockInfoResponse, JsonProcessedBlockResponse};
+use mc_mobilecoind_api::{Empty, GetBlockInfoRequest, GetBlockRequest};
+use mc_mobilecoind_json::data_types::{
+    JsonBlockDetailsResponse, JsonBlockInfoResponse, JsonLedgerInfoResponse,
+    JsonProcessedBlockResponse,
+};
 use mc_mobilecoind_mirror::{
     mobilecoind_mirror_api::{GetProcessedBlockRequest, QueryRequest, SignedRequest},
     uri::MobilecoindMirrorUri,
@@ -206,7 +209,11 @@ fn block_info(
     let mut query_request = QueryRequest::new();
     query_request.set_get_block_info(get_block_info);
 
-    log::debug!(state.logger, "Enqueueing GetBlockInfoRequest({})", block_num);
+    log::debug!(
+        state.logger,
+        "Enqueueing GetBlockInfoRequest({})",
+        block_num
+    );
     let query = state.query_manager.enqueue_query(query_request);
     let query_response = query.wait()?;
 
@@ -240,9 +247,7 @@ fn block_info(
 
 /// Retrieve ledger information
 #[get("/ledger/local")]
-fn ledger_info(
-    state: rocket::State<State>,
-) -> Result<Json<JsonLedgerInfoResponse>, String> {
+fn ledger_info(state: rocket::State<State>) -> Result<Json<JsonLedgerInfoResponse>, String> {
     let mut query_request = QueryRequest::new();
     query_request.set_get_ledger_info(Empty::new());
 
@@ -266,10 +271,7 @@ fn ledger_info(
         return Err("Incorrect response type received".into());
     }
 
-    log::info!(
-        state.logger,
-        "GetLedgerInfoRequest completed successfully"
-    );
+    log::info!(state.logger, "GetLedgerInfoRequest completed successfully");
 
     let response = query_response.get_get_ledger_info();
     Ok(Json(JsonLedgerInfoResponse::from(response)))
@@ -328,36 +330,6 @@ fn signed_request(
     let response = query_response.get_encrypted_response();
     Ok(response.get_payload().to_vec())
 }
-
-// Methods for retrieving ledger info copied from mobilecoind-json
-
-/// Gets information about the entire ledger
-// #[get("/ledger/local")]
-// fn ledger_info(state: rocket::State<State>) -> Result<Json<JsonLedgerInfoResponse>, String> {
-//     let resp = state
-//         .mobilecoind_api_client
-//         .get_ledger_info(&mc_mobilecoind_api::Empty::new())
-//         .map_err(|err| format!("Failed getting ledger info: {}", err))?;
-//
-//     Ok(Json(JsonLedgerInfoResponse::from(&resp)))
-// }
-
-// /// Retrieves the data in a request code
-// #[get("/ledger/blocks/<block_num>/header")]
-// fn block_info(
-//     state: rocket::State<State>,
-//     block_num: u64,
-// ) -> Result<Json<JsonBlockInfoResponse>, String> {
-//     let mut req = mc_mobilecoind_api::GetBlockInfoRequest::new();
-//     req.set_block(block_num);
-//
-//     let resp = state
-//         .mobilecoind_api_client
-//         .get_block_info(&req)
-//         .map_err(|err| format!("Failed getting ledger info: {}", err))?;
-//
-//     Ok(Json(JsonBlockInfoResponse::from(&resp)))
-// }
 
 fn main() {
     mc_common::setup_panic_handler();
@@ -434,7 +406,16 @@ fn main() {
 
     log::info!(logger, "Starting client web server");
     rocket::custom(rocket_config)
-        .mount("/", routes![processed_block, block_info, block_details, ledger_info, signed_request])
+        .mount(
+            "/",
+            routes![
+                processed_block,
+                block_info,
+                block_details,
+                ledger_info,
+                signed_request
+            ],
+        )
         .manage(State {
             query_manager,
             logger,
