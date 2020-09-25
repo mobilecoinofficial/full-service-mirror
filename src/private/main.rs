@@ -261,7 +261,7 @@ fn process_request(
 
     // GetBlockInfoRequest
     if query_request.has_get_block_info() {
-        let mirror_request = query_request.get_get_block();
+        let mirror_request = query_request.get_get_block_info();
         let mut mobilecoind_request = mc_mobilecoind_api::GetBlockInfoRequest::new();
         mobilecoind_request.set_block(mirror_request.block);
 
