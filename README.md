@@ -21,7 +21,7 @@ The first step in running the mobilecoind mirror is to have a mobilecoind instan
 Once mobilecoind is running and set up, start the private side of the mirror:
 
 ```
-cargo run -p mc-mobilecoind-mirror --bin mobilecoind-mirror-private -- --mirror-public-uri insecure-mobilecoind-mirror://127.0.0.1/ --mobilecoind-host localhost:4444`
+cargo run -p mc-mobilecoind-mirror --bin mobilecoind-mirror-private -- --mirror-public-uri insecure-mobilecoind-mirror://127.0.0.1/ --mobilecoind-uri insecure-mobilecoind://localhost:4444 --monitor-id $monitor_id
 ```
 
 This starts the private side of the mirror, telling it to connect to `mobilecoind` on localhost:4444 and the public side on `127.0.0.1:10080` (10080 is the default port for the `insecure-mobilecoind-mirror` URI scheme).
@@ -36,17 +36,69 @@ cargo run -p mc-mobilecoind-mirror --bin mobilecoind-mirror-public -- --client-l
 
 Once started, the private side should no longer show errors and the mirror should be up and running. You can now send client requests, for example - query the genesis block information:
 
-```
-$ curl http://localhost:8001/block/0
+Query block details:
 
-{"block_id":"e498010ee6a19b4ac9313af43d8274c53d54a1bbc275c06374dbe0095872a6ee","version":0,"parent_id":"0000000000000000000000000000000000000000000000000000000000000000","index":"0","cumulative_txo_count":"10000","contents_hash":"40bffaff21f4825bc36e4598c3346b375fe77ec1c78f15c8a98623c0ba6b1d21"}
+```
+$ curl http://localhost:8001/ledger/blocks/1
+
+{
+  "block_id": "50af3862accbf3cfe8dda7e88df822342615e14c317c70779dc237894f08a432",
+  "version": 0,
+  "parent_id": "93234e8833885dbf795db8728f2da5065940adb78ebb2d4a4dbe17c964a73def",
+  "index": "1",
+  "cumulative_txo_count": "18",
+  "contents_hash": "ddd2e407f9911ed77eb3a5f77fd65313d3060b1c50505e25b3550836333750d2"
+}
+```
+
+Query block header info:
+
+```
+$ curl http://localhost:8001/ledger/blocks/1/header
+
+{
+  "key_image_count": "0",
+  "txo_count": "16"
+}
+```
+
+Query ledger details:
+
+```
+$ curl http://localhost:8001/ledger/local
+
+{
+  "block_count": "41017",
+  "txo_count": "123090"
+}
 ```
 
 Query processed block information for a block your monitor has information for:
+
 ```
 $ curl http://localhost:8001/processed-block/33826/
 
-{"tx_outs":[{"monitor_id":"08b4e048afc793213fae60d6ad69a5cb73e43a0d1ebba1cdaaf008a912acf1c3","subaddress_index":0,"public_key":"0ce630939a15c9314b36323547fe671d3865622f04190c377571f8c94a066700","key_image":"d20b42ad18a31048e69ea50a5136363f84cca3558a06d1d2c7b6e069fbcf5a53","value":"999999999840","direction":"received"},{"monitor_id":"08b4e048afc793213fae60d6ad69a5cb73e43a0d1ebba1cdaaf008a912acf1c3","subaddress_index":0,"public_key":"58292cdd7f2d7c3caf885d9bbeca69f17d2e15fe781fc31eafbdb9506433560d","key_image":"d6716d7c4f038a847b2f106eed62c0ce59c2e0eecfcf1d1da473bd26e9864d58","value":"999999999890","direction":"spent"}]}
+{
+  "tx_outs": 
+  [
+    {
+      "monitor_id": "08b4e048afc793213fae60d6ad69a5cb73e43a0d1ebba1cdaaf008a912acf1c3",
+      "subaddress_index": 0,
+      "public_key": "0ce630939a15c9314b36323547fe671d3865622f04190c377571f8c94a066700",
+      "key_image": "d20b42ad18a31048e69ea50a5136363f84cca3558a06d1d2c7b6e069fbcf5a53",
+      "value": "999999999840",
+      "direction": "received"
+    },
+    {
+      "monitor_id": "08b4e048afc793213fae60d6ad69a5cb73e43a0d1ebba1cdaaf008a912acf1c3",
+      "subaddress_index": 0,
+      "public_key": "58292cdd7f2d7c3caf885d9bbeca69f17d2e15fe781fc31eafbdb9506433560d",
+      "key_image": "d6716d7c4f038a847b2f106eed62c0ce59c2e0eecfcf1d1da473bd26e9864d58",
+      "value": "999999999890",
+      "direction": "spent"
+    }
+  ]
+}
 ```
 
 For supported requests, the response types are identical to the ones used by [mobilecoind-json](../mobilecoind-json).

@@ -62,3 +62,8 @@ prost-derive = { git = "https://github.com/danburkert/prost", rev = "6113789f70b
 # slog is patched in order to build in no_std config with dynamic_keys feature on
 # https://github.com/slog-rs/slog/pull/268
 slog = { git = "https://github.com/mobilecoinofficial/slog", rev = "cc1562258b81353426d17a55b7447256fa6eabbf" }
+
+# Patched to depend on crates that depend on digest 0.9
+bulletproofs = { git = "https://github.com/eranrund/bulletproofs", rev = "e8e8ef45ecc6d31f1a9525140edc977351d0f780" }
+# Patched to disable the cpuid instruction because that is incompatible with our sgx builds.
+cpuid-bool = { git = "https://github.com/eranrund/RustCrypto-utils", rev = "e00f5f16e395349c2c2395aac9287da0ac843a73" }

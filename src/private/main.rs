@@ -259,6 +259,38 @@ fn process_request(
         return Ok(mirror_response);
     }
 
+    // GetBlockInfoRequest
+    if query_request.has_get_block_info() {
+        let mirror_request = query_request.get_get_block();
+        let mut mobilecoind_request = mc_mobilecoind_api::GetBlockInfoRequest::new();
+        mobilecoind_request.set_block(mirror_request.block);
+
+        log::debug!(
+            logger,
+            "Incoming get_block_info({}), forwarding to mobilecoind",
+            mirror_request.block
+        );
+        let mobilecoind_response = mobilecoind_api_client.get_block_info(&mobilecoind_request)?;
+        log::info!(logger, "get_block_info({}) succeeded", mirror_request.block);
+
+        mirror_response.set_get_block_info(mobilecoind_response);
+        return Ok(mirror_response);
+    }
+
+    // GetLedgerInfoRequest
+    if query_request.has_get_ledger_info() {
+        log::debug!(
+            logger,
+            "Incoming get_ledger_info, forwarding to mobilecoind",
+        );
+        let mobilecoind_response =
+            mobilecoind_api_client.get_ledger_info(&mc_mobilecoind_api::Empty::new())?;
+        log::info!(logger, "get_ledger_info succeeded");
+
+        mirror_response.set_get_ledger_info(mobilecoind_response);
+        return Ok(mirror_response);
+    }
+
     // Unknown response.
     Err(grpcio::Error::RpcFailure(RpcStatus::new(
         RpcStatusCode::INTERNAL,
