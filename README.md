@@ -101,6 +101,15 @@ $ curl http://localhost:8001/processed-block/33826/
 }
 ```
 
+
+Get the block index of a given TxOut by its public key:
+
+```
+ curl http://127.0.0.1:8001/tx-out/c853d6c33f5801941a312a5f876a64506522c6c223/block-index
+
+{"block_index":"1298"}
+```
+
 For supported requests, the response types are identical to the ones used by [mobilecoind-json](../mobilecoind-json).
 
 
