@@ -14,10 +14,13 @@ mod utils;
 
 use grpcio::{EnvBuilder, ServerBuilder};
 use mc_common::logger::{create_app_logger, log, o, Logger};
-use mc_mobilecoind_api::{Empty, GetBlockInfoRequest, GetBlockRequest};
+use mc_mobilecoind_api::{
+    external::CompressedRistretto, Empty, GetBlockIndexByTxPubKeyRequest, GetBlockInfoRequest,
+    GetBlockRequest,
+};
 use mc_mobilecoind_json::data_types::{
-    JsonBlockDetailsResponse, JsonBlockInfoResponse, JsonLedgerInfoResponse,
-    JsonProcessedBlockResponse,
+    JsonBlockDetailsResponse, JsonBlockIndexByTxPubKeyResponse, JsonBlockInfoResponse,
+    JsonLedgerInfoResponse, JsonProcessedBlockResponse,
 };
 use mc_mobilecoind_mirror::{
     mobilecoind_mirror_api::{GetProcessedBlockRequest, QueryRequest, SignedRequest},
@@ -277,6 +280,56 @@ fn ledger_info(state: rocket::State<State>) -> Result<Json<JsonLedgerInfoRespons
     Ok(Json(JsonLedgerInfoResponse::from(response)))
 }
 
+#[get("/tx-out/<public_key_hex>/block-index")]
+fn tx_out_get_block_index_by_public_key(
+    state: rocket::State<State>,
+    public_key_hex: String,
+) -> Result<Json<JsonBlockIndexByTxPubKeyResponse>, String> {
+    let tx_out_public_key = hex::decode(&public_key_hex)
+        .map_err(|err| format!("Failed to decode hex public key: {}", err))?;
+
+    let mut tx_out_public_key_proto = CompressedRistretto::new();
+    tx_out_public_key_proto.set_data(tx_out_public_key);
+
+    let mut get_block_index_by_tx_pub_key_request = GetBlockIndexByTxPubKeyRequest::new();
+    get_block_index_by_tx_pub_key_request.set_tx_public_key(tx_out_public_key_proto);
+
+    let mut query_request = QueryRequest::new();
+    query_request.set_get_block_index_by_tx_pub_key(get_block_index_by_tx_pub_key_request);
+
+    log::debug!(
+        state.logger,
+        "Enqueueing GetBlockIndexByTxPubKey({}) Request",
+        public_key_hex
+    );
+    let query = state.query_manager.enqueue_query(query_request);
+    let query_response = query.wait()?;
+
+    if query_response.has_error() {
+        log::error!(
+            state.logger,
+            "GetBlockIndexByTxPubKey failed: {}",
+            query_response.get_error()
+        );
+        return Err(query_response.get_error().into());
+    }
+    if !query_response.has_get_block_index_by_tx_pub_key() {
+        log::error!(
+            state.logger,
+            "GetBlockIndexByTxPubKey returned incorrect response type",
+        );
+        return Err("Incorrect response type received".into());
+    }
+
+    log::info!(
+        state.logger,
+        "GetBlockIndexByTxPubKey completed successfully"
+    );
+
+    let response = query_response.get_get_block_index_by_tx_pub_key();
+    Ok(Json(JsonBlockIndexByTxPubKeyResponse::from(response)))
+}
+
 #[derive(Deserialize)]
 struct JsonSignedRequest {
     request: String,
@@ -409,11 +462,12 @@ fn main() {
         .mount(
             "/",
             routes![
+                signed_request,
                 processed_block,
                 block_info,
                 block_details,
                 ledger_info,
-                signed_request
+                tx_out_get_block_index_by_public_key,
             ],
         )
         .manage(State {

@@ -12,10 +12,12 @@ mod request;
 use crate::request::SignedJsonRequest;
 use grpcio::{ChannelBuilder, RpcStatus, RpcStatusCode};
 use mc_common::logger::{create_app_logger, log, o, Logger};
-use mc_mobilecoind_api::{mobilecoind_api_grpc::MobilecoindApiClient, MobilecoindUri};
+use mc_mobilecoind_api::{
+    external::CompressedRistretto, mobilecoind_api_grpc::MobilecoindApiClient, MobilecoindUri,
+};
 use mc_mobilecoind_json::data_types::{
-    JsonBlockDetailsResponse, JsonBlockInfoResponse, JsonLedgerInfoResponse,
-    JsonProcessedBlockResponse,
+    JsonBlockDetailsResponse, JsonBlockIndexByTxPubKeyResponse, JsonBlockInfoResponse,
+    JsonLedgerInfoResponse, JsonProcessedBlockResponse,
 };
 use mc_mobilecoind_mirror::{
     mobilecoind_mirror_api::{EncryptedResponse, PollRequest, QueryRequest, QueryResponse},
@@ -247,15 +249,13 @@ fn process_request(
     // GetBlockRequest
     if query_request.has_get_block() {
         let mirror_request = query_request.get_get_block();
-        let mut mobilecoind_request = mc_mobilecoind_api::GetBlockRequest::new();
-        mobilecoind_request.set_block(mirror_request.block);
 
         log::debug!(
             logger,
             "Incoming get_block({}), forwarding to mobilecoind",
             mirror_request.block
         );
-        let mobilecoind_response = mobilecoind_api_client.get_block(&mobilecoind_request)?;
+        let mobilecoind_response = mobilecoind_api_client.get_block(mirror_request)?;
         log::info!(logger, "get_block({}) succeeded", mirror_request.block);
 
         mirror_response.set_get_block(mobilecoind_response);
@@ -265,15 +265,13 @@ fn process_request(
     // GetBlockInfoRequest
     if query_request.has_get_block_info() {
         let mirror_request = query_request.get_get_block_info();
-        let mut mobilecoind_request = mc_mobilecoind_api::GetBlockInfoRequest::new();
-        mobilecoind_request.set_block(mirror_request.block);
 
         log::debug!(
             logger,
             "Incoming get_block_info({}), forwarding to mobilecoind",
             mirror_request.block
         );
-        let mobilecoind_response = mobilecoind_api_client.get_block_info(&mobilecoind_request)?;
+        let mobilecoind_response = mobilecoind_api_client.get_block_info(mirror_request)?;
         log::info!(logger, "get_block_info({}) succeeded", mirror_request.block);
 
         mirror_response.set_get_block_info(mobilecoind_response);
@@ -291,6 +289,27 @@ fn process_request(
         log::info!(logger, "get_ledger_info succeeded");
 
         mirror_response.set_get_ledger_info(mobilecoind_response);
+        return Ok(mirror_response);
+    }
+
+    // GetBlockIndexByTxPubKeyRequest
+    if query_request.has_get_block_index_by_tx_pub_key() {
+        let mirror_request = query_request.get_get_block_index_by_tx_pub_key();
+
+        log::debug!(
+            logger,
+            "Incoming get_block_index_by_tx_pub_key({}), forwarding to mobilecoind",
+            hex::encode(mirror_request.get_tx_public_key().get_data())
+        );
+        let mobilecoind_response =
+            mobilecoind_api_client.get_block_index_by_tx_pub_key(mirror_request)?;
+        log::info!(
+            logger,
+            "Incoming get_block_index_by_tx_pub_key({}) succeeded",
+            hex::encode(mirror_request.get_tx_public_key().get_data())
+        );
+
+        mirror_response.set_get_block_index_by_tx_pub_key(mobilecoind_response);
         return Ok(mirror_response);
     }
 
@@ -409,6 +428,38 @@ fn process_encrypted_request(
             log::info!(logger, "get_ledger_info() succeeded");
 
             serde_json::to_vec(&JsonLedgerInfoResponse::from(&mobilecoind_response))
+        }
+
+        SignedJsonRequest::GetBlockIndexByTxPubKey { tx_public_key } => {
+            log::debug!(
+                logger,
+                "Incoming get_block_index_by_tx_pubkey({}), forwarding to mobilecoind",
+                tx_public_key
+            );
+            let tx_out_public_key = hex::decode(&tx_public_key).map_err(|err| {
+                grpcio::Error::RpcFailure(RpcStatus::new(
+                    RpcStatusCode::INTERNAL,
+                    Some(format!("Failed to decode hex public key: {}", err)),
+                ))
+            })?;
+
+            let mut tx_out_public_key_proto = CompressedRistretto::new();
+            tx_out_public_key_proto.set_data(tx_out_public_key);
+
+            let mut mobilecoind_request = mc_mobilecoind_api::GetBlockIndexByTxPubKeyRequest::new();
+            mobilecoind_request.set_tx_public_key(tx_out_public_key_proto);
+
+            let mobilecoind_response =
+                mobilecoind_api_client.get_block_index_by_tx_pub_key(&mobilecoind_request)?;
+            log::info!(
+                logger,
+                "get_block_index_by_tx_pubkey({}) succeeded",
+                tx_public_key
+            );
+
+            serde_json::to_vec(&JsonBlockIndexByTxPubKeyResponse::from(
+                &mobilecoind_response,
+            ))
         }
     };
     let json_response = json_response_result.map_err(|err| {

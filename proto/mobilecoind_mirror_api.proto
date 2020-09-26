@@ -23,6 +23,7 @@ message QueryRequest {
         mobilecoind_api.GetBlockRequest get_block = 3;
         mobilecoind_api.GetBlockInfoRequest get_block_info = 4;
         google.protobuf.Empty get_ledger_info = 5;
+        mobilecoind_api.GetBlockIndexByTxPubKeyRequest get_block_index_by_tx_pub_key = 6;
     }
 }
 
@@ -35,6 +36,7 @@ message QueryResponse {
         mobilecoind_api.GetBlockResponse get_block = 4;
         mobilecoind_api.GetBlockInfoResponse get_block_info = 5;
         mobilecoind_api.GetLedgerInfoResponse get_ledger_info = 6;
+        mobilecoind_api.GetBlockIndexByTxPubKeyResponse get_block_index_by_tx_pub_key = 7;
     }
 }
 
