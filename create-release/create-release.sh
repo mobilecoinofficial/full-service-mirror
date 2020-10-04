@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -e
+set -ex
 
 RELEASE_NAME="$1"
 if [ -z "$RELEASE_NAME" ]; then
@@ -8,6 +8,11 @@ if [ -z "$RELEASE_NAME" ]; then
     exit 1
 fi
 : VERSION=${VERSION:?"Must provide VERSION for to substitute for db paths"}
+export SGX_MODE=${SGX_MODE:-HW}
+export IAS_MODE=${IAS_MODE:-PROD}
+SIGSTRUCT_URI=$(curl -s https://enclave-distribution.test.mobilecoin.com/production.json | grep sigstruct | awk '{print $2}' | tr -d \")
+curl -O https://enclave-distribution.test.mobilecoin.com/${SIGSTRUCT_URI}
+export CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 PROJECT_ROOT="$SCRIPT_DIR/.."
