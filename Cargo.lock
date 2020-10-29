@@ -29,8 +29,7 @@ dependencies = [
 [[package]]
 name = "aes-gcm"
 version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86f5007801316299f922a6198d1d09a0bae95786815d066d5880d13f7c45ead1"
+source = "git+https://github.com/xoloki/AEADs?rev=d1a8517d3dd867ed9c5794002add67992a42f6aa#d1a8517d3dd867ed9c5794002add67992a42f6aa"
 dependencies = [
  "aead",
  "aes",
@@ -170,6 +169,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "53d1ccbaf7d9ec9537465a97bf19edc1a4e158ecb49fc16178202238c569cc42"
 
 [[package]]
+name = "base64"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
+
+[[package]]
 name = "binascii"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -217,7 +222,7 @@ checksum = "84ce5b6108f8e154604bd4eb76a2f726066c3464d5a552a4229262a18c9bb471"
 dependencies = [
  "byte-tools",
  "byteorder",
- "crypto-mac",
+ "crypto-mac 0.8.0",
  "digest",
  "opaque-debug 0.2.3",
 ]
@@ -484,20 +489,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "69323bff1fb41c635347b8ead484a5ca6c3f11914d784170b158d8449ab07f8e"
 dependencies = [
  "cfg-if",
- "crossbeam-channel 0.4.2",
+ "crossbeam-channel",
  "crossbeam-deque",
  "crossbeam-epoch",
  "crossbeam-queue",
- "crossbeam-utils 0.7.2",
-]
-
-[[package]]
-name = "crossbeam-channel"
-version = "0.3.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8ec7fcd21571dc78f96cc96243cab8d8f035247c3efd16c687be154c3fa9efa"
-dependencies = [
- "crossbeam-utils 0.6.6",
+ "crossbeam-utils",
 ]
 
 [[package]]
@@ -506,7 +502,7 @@ version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cced8691919c02aac3cb0a1bc2e9b73d89e832bf9a06fc579d4e71b68a2da061"
 dependencies = [
- "crossbeam-utils 0.7.2",
+ "crossbeam-utils",
  "maybe-uninit",
 ]
 
@@ -517,7 +513,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f02af974daeee82218205558e51ec8768b48cf524bd01d550abe5573a608285"
 dependencies = [
  "crossbeam-epoch",
- "crossbeam-utils 0.7.2",
+ "crossbeam-utils",
  "maybe-uninit",
 ]
 
@@ -529,7 +525,7 @@ checksum = "058ed274caafc1f60c4997b5fc07bf7dc7cca454af7c6e81edffe5f33f70dace"
 dependencies = [
  "autocfg 1.0.0",
  "cfg-if",
- "crossbeam-utils 0.7.2",
+ "crossbeam-utils",
  "lazy_static",
  "maybe-uninit",
  "memoffset",
@@ -543,17 +539,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c695eeca1e7173472a32221542ae469b3e9aac3a4fc81f7696bcad82029493db"
 dependencies = [
  "cfg-if",
- "crossbeam-utils 0.7.2",
-]
-
-[[package]]
-name = "crossbeam-utils"
-version = "0.6.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04973fa96e96579258a5091af6003abde64af786b860f18622b82e026cca60e6"
-dependencies = [
- "cfg-if",
- "lazy_static",
+ "crossbeam-utils",
 ]
 
 [[package]]
@@ -572,6 +558,16 @@ name = "crypto-mac"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b584a330336237c1eecd3e94266efb216c56ed91225d634cb2991c5f3fd1aeab"
+dependencies = [
+ "generic-array 0.14.3",
+ "subtle",
+]
+
+[[package]]
+name = "crypto-mac"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "58bcd97a54c7ca5ce2f6eb16f6bede5b0ab5f0055fedc17d2f0b4466e21671ca"
 dependencies = [
  "generic-array 0.14.3",
  "subtle",
@@ -631,9 +627,9 @@ dependencies = [
 
 [[package]]
 name = "der-parser"
-version = "4.0.2"
+version = "4.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c97e68dc033b340ff19244dd3caa94c6148383711361d5e3c74f64175760a93c"
+checksum = "caca07c50eaae94d43e21f4d14eca5543b6f5f5ce64715e9b7665ac5f5185b4e"
 dependencies = [
  "der-oid-macro",
  "nom 5.1.2",
@@ -1123,7 +1119,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fe1149865383e4526a43aee8495f9a325f0b806c63ce6427d06336a590abbbc9"
 dependencies = [
  "digest",
- "hmac",
+ "hmac 0.8.1",
 ]
 
 [[package]]
@@ -1132,7 +1128,17 @@ version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "126888268dcc288495a26bf004b38c5fdbb31682f992c84ceb046a1f0fe38840"
 dependencies = [
- "crypto-mac",
+ "crypto-mac 0.8.0",
+ "digest",
+]
+
+[[package]]
+name = "hmac"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "deae6d9dbb35ec2c502d62b8f7b1c000a0822c3b0794ba36b3149c0a1c840dff"
+dependencies = [
+ "crypto-mac 0.9.1",
  "digest",
 ]
 
@@ -1516,6 +1522,7 @@ dependencies = [
  "mc-util-build-script",
  "mc-util-repr-bytes",
  "mc-util-serial",
+ "mc-watcher-api",
  "protobuf",
 ]
 
@@ -1565,8 +1572,19 @@ dependencies = [
  "digest",
  "failure",
  "hkdf",
+ "mc-crypto-ct-aead",
  "mc-crypto-keys",
  "rand_core 0.5.1",
+]
+
+[[package]]
+name = "mc-crypto-ct-aead"
+version = "0.5.0"
+dependencies = [
+ "aead",
+ "aes-gcm",
+ "block-cipher",
+ "subtle",
 ]
 
 [[package]]
@@ -1724,7 +1742,6 @@ dependencies = [
  "curve25519-dalek",
  "digest",
  "displaydoc",
- "failure",
  "generic-array 0.14.3",
  "hex_fmt",
  "lazy_static",
@@ -1781,9 +1798,14 @@ dependencies = [
 name = "mc-util-grpc"
 version = "1.0.0"
 dependencies = [
+ "base64 0.12.1",
+ "digest",
+ "displaydoc",
  "futures",
  "grpcio",
+ "hex",
  "hex_fmt",
+ "hmac 0.9.0",
  "lazy_static",
  "mc-common",
  "mc-util-build-grpc",
@@ -1795,6 +1817,9 @@ dependencies = [
  "prost",
  "protobuf",
  "rand 0.6.5",
+ "sha2",
+ "subtle",
+ "zeroize",
 ]
 
 [[package]]
@@ -1815,7 +1840,7 @@ name = "mc-util-metrics"
 version = "1.0.0"
 dependencies = [
  "chrono",
- "crossbeam-channel 0.3.9",
+ "crossbeam-channel",
  "grpcio",
  "lazy_static",
  "mc-common",
@@ -1854,8 +1879,17 @@ dependencies = [
  "mc-common",
  "mc-crypto-keys",
  "mc-util-host-cert",
+ "percent-encoding 2.1.0",
  "serde",
  "url 2.1.1",
+]
+
+[[package]]
+name = "mc-watcher-api"
+version = "1.0.0"
+dependencies = [
+ "displaydoc",
+ "serde",
 ]
 
 [[package]]
@@ -2781,7 +2815,7 @@ dependencies = [
  "base64 0.11.0",
  "blake2b_simd",
  "constant_time_eq",
- "crossbeam-utils 0.7.2",
+ "crossbeam-utils",
 ]
 
 [[package]]
@@ -3150,7 +3184,7 @@ version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "51b3336ce47ce2f96673499fc07eb85e3472727b9a7a2959964b002c2ce8fbbb"
 dependencies = [
- "crossbeam-channel 0.4.2",
+ "crossbeam-channel",
  "slog",
  "take_mut",
  "thread_local",
@@ -3870,10 +3904,11 @@ dependencies = [
 
 [[package]]
 name = "x509-parser"
-version = "0.8.0-beta4"
-source = "git+https://github.com/rusticata/x509-parser.git?rev=de244d2c66e8d929612f9c849c358e2b3f2dd675#de244d2c66e8d929612f9c849c358e2b3f2dd675"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a76245c48460d72a3e17ad3a01855c3cae98601bb992091c1c1421c77d1cb27c"
 dependencies = [
- "base64 0.12.1",
+ "base64 0.13.0",
  "chrono",
  "data-encoding",
  "der-oid-macro",
@@ -3884,6 +3919,7 @@ dependencies = [
  "ring",
  "rusticata-macros",
  "rustversion",
+ "thiserror",
 ]
 
 [[package]]

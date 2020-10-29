@@ -39,8 +39,7 @@ serde_json = "1.0"
 sha2 = "0.9.1"
 structopt = "0.3"
 
-# FIXME: Support for authority key identifier just added, should be in 0.8.0 release
-x509-parser = { git = "https://github.com/rusticata/x509-parser.git", rev = "de244d2c66e8d929612f9c849c358e2b3f2dd675", features = ["verify"] }
+x509-parser = { version = "0.8", features = ["verify"] }
 
 # We need a specific commit since a version supporting reading PEM files has not been officially released yet.
 rsa = { git = "https://github.com/RustCrypto/RSA", rev = "4274e838d112a0aa194a2102ed4930fd9797f1eb" }
@@ -67,3 +66,6 @@ slog = { git = "https://github.com/mobilecoinofficial/slog", rev = "cc1562258b81
 bulletproofs = { git = "https://github.com/eranrund/bulletproofs", rev = "e8e8ef45ecc6d31f1a9525140edc977351d0f780" }
 # Patched to disable the cpuid instruction because that is incompatible with our sgx builds.
 cpuid-bool = { git = "https://github.com/eranrund/RustCrypto-utils", rev = "e00f5f16e395349c2c2395aac9287da0ac843a73" }
+
+# We need to patch aes-gcm so we can make some fields/functions/structs pub in order to have a constant time decrypt
+aes-gcm = { git = "https://github.com/xoloki/AEADs", rev = "d1a8517d3dd867ed9c5794002add67992a42f6aa" }

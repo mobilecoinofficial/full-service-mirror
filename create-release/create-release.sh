@@ -8,9 +8,13 @@ if [ -z "$RELEASE_NAME" ]; then
     exit 1
 fi
 : VERSION=${VERSION:?"Must provide VERSION for to substitute for db paths"}
+: CONSENSUS_ENCLAVE_CSS=${CONSENSUS_ENCLAVE_CSS:?"Must provide CONSENSUS_ENCLAVE_CSS"}
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 PROJECT_ROOT="$SCRIPT_DIR/.."
+
+export SGX_MODE=HW
+export IAS_MODE=PROD
 
 # Build requires dependencies
 cargo build -p mc-mobilecoind -p mc-mobilecoind-json --release --manifest-path $PROJECT_ROOT/mobilecoin/Cargo.toml
