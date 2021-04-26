@@ -423,7 +423,7 @@ fn main() {
         .register_service(build_info_service)
         .register_service(health_service)
         .register_service(mirror_service)
-        .bind_using_uri(&config.mirror_listen_uri);
+        .bind_using_uri(&config.mirror_listen_uri, logger.clone());
 
     let mut server = server_builder.build().unwrap();
     server.start();
