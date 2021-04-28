@@ -31,7 +31,7 @@ At this point you would see a bunch of error messages printed as the private sid
 Now, start the public side of the mirror:
 
 ```
-cargo run -p mc-mobilecoind-mirror --bin mobilecoind-mirror-public -- --client-listen-uri http://0.0.0.0:8001/ --mirror-listen-uri insecure-mobilecoind-mirror://127.0.0.1/
+cargo run -p mc-mobilecoind-mirror --bin mobilecoind-mirror-public -- --client-listen-uri http://0.0.0.0:9091/ --mirror-listen-uri insecure-mobilecoind-mirror://127.0.0.1/
 ```
 
 Once started, the private side should no longer show errors and the mirror should be up and running. You can now send client requests, for example - query the genesis block information:

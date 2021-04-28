@@ -14,16 +14,8 @@ mod utils;
 
 use grpcio::{EnvBuilder, ServerBuilder};
 use mc_common::logger::{create_app_logger, log, o, Logger};
-use mc_mobilecoind_api::{
-    external::CompressedRistretto, Empty, GetBlockIndexByTxPubKeyRequest, GetBlockInfoRequest,
-    GetBlockRequest,
-};
-use mc_mobilecoind_json::data_types::{
-    JsonBlockDetailsResponse, JsonBlockIndexByTxPubKeyResponse, JsonBlockInfoResponse,
-    JsonLedgerInfoResponse, JsonProcessedBlockResponse,
-};
 use mc_mobilecoind_mirror::{
-    mobilecoind_mirror_api::{GetProcessedBlockRequest, QueryRequest, SignedRequest},
+    mobilecoind_mirror_api::{QueryRequest, UnsignedRequest, SignedRequest},
     uri::MobilecoindMirrorUri,
 };
 use mc_util_grpc::{BuildInfoService, ConnectionUriGrpcioServer, HealthService};
@@ -32,7 +24,6 @@ use mirror_service::MirrorService;
 use query::QueryManager;
 use rocket::{
     config::{Config as RocketConfig, Environment as RocketEnvironment},
-    get,
     http::Status,
     post,
     response::Responder,
@@ -114,22 +105,22 @@ impl From<String> for BadRequest {
     }
 }
 
-/// Retreive processed block information.
-#[get("/processed-block/<block_num>")]
-fn processed_block(
+
+#[post("/unsigned-request", format = "json", data = "<request>")]
+fn unsigned_request(
     state: rocket::State<State>,
-    block_num: u64,
-) -> Result<Json<JsonProcessedBlockResponse>, String> {
-    let mut get_processed_block = GetProcessedBlockRequest::new();
-    get_processed_block.set_block(block_num);
+    request: String,
+) -> Result<String, BadRequest> {
+    let mut unsigned_request = UnsignedRequest::new();
+    unsigned_request.set_json_request(request.clone());
 
     let mut query_request = QueryRequest::new();
-    query_request.set_get_processed_block(get_processed_block);
+    query_request.set_unsigned_request(unsigned_request);
 
     log::debug!(
         state.logger,
-        "Enqueueing GetProcessedBlockRequest({})",
-        block_num
+        "Enqueueing UnsignedRequest({})",
+        request,
     );
     let query = state.query_manager.enqueue_query(query_request);
     let query_response = query.wait()?;
@@ -137,204 +128,38 @@ fn processed_block(
     if query_response.has_error() {
         log::error!(
             state.logger,
-            "GetProcessedBlockRequest({}) failed: {}",
-            block_num,
+            "UnsignedRequest({}) failed: {}",
+            request,
             query_response.get_error()
         );
         return Err(query_response.get_error().into());
     }
-    if !query_response.has_get_processed_block() {
+    if !query_response.has_unencrypted_response() {
         log::error!(
             state.logger,
-            "GetProcessedBlockRequest({}) returned incorrect response type",
-            block_num
-        );
-        return Err("Incorrect response type received".into());
-    }
-
-    let response = query_response.get_get_processed_block();
-    Ok(Json(JsonProcessedBlockResponse::from(response)))
-}
-
-/// Retrieve a single block.
-#[get("/ledger/blocks/<block_num>")]
-fn block_details(
-    state: rocket::State<State>,
-    block_num: u64,
-) -> Result<Json<JsonBlockDetailsResponse>, String> {
-    let mut get_block = GetBlockRequest::new();
-    get_block.set_block(block_num);
-
-    let mut query_request = QueryRequest::new();
-    query_request.set_get_block(get_block);
-
-    log::debug!(state.logger, "Enqueueing GetBlockRequest({})", block_num);
-    let query = state.query_manager.enqueue_query(query_request);
-    let query_response = query.wait()?;
-
-    if query_response.has_error() {
-        log::error!(
-            state.logger,
-            "GetBlockRequest({}) failed: {}",
-            block_num,
-            query_response.get_error()
-        );
-        return Err(query_response.get_error().into());
-    }
-    if !query_response.has_get_block() {
-        log::error!(
-            state.logger,
-            "GetBlockRequest({}) returned incorrect response type",
-            block_num
+            "UnsignedRequest({}) returned incorrect response type",
+            request,
         );
         return Err("Incorrect response type received".into());
     }
 
     log::info!(
         state.logger,
-        "GetBlockRequest({}) completed successfully",
-        block_num
+        "UnsignedRequest({}) completed successfully",
+        request,
     );
 
-    let response = query_response.get_get_block();
-    Ok(Json(JsonBlockDetailsResponse::from(response)))
+    let response = query_response.get_unencrypted_response();
+    Ok(response.get_json_response().to_string())
 }
 
-/// Retrieve a block header
-#[get("/ledger/blocks/<block_num>/header")]
-fn block_info(
-    state: rocket::State<State>,
-    block_num: u64,
-) -> Result<Json<JsonBlockInfoResponse>, String> {
-    let mut get_block_info = GetBlockInfoRequest::new();
-    get_block_info.set_block(block_num);
-
-    let mut query_request = QueryRequest::new();
-    query_request.set_get_block_info(get_block_info);
-
-    log::debug!(
-        state.logger,
-        "Enqueueing GetBlockInfoRequest({})",
-        block_num
-    );
-    let query = state.query_manager.enqueue_query(query_request);
-    let query_response = query.wait()?;
-
-    if query_response.has_error() {
-        log::error!(
-            state.logger,
-            "GetBlockInfoRequest({}) failed: {}",
-            block_num,
-            query_response.get_error()
-        );
-        return Err(query_response.get_error().into());
-    }
-    if !query_response.has_get_block_info() {
-        log::error!(
-            state.logger,
-            "GetBlockInfoRequest({}) returned incorrect response type",
-            block_num
-        );
-        return Err("Incorrect response type received".into());
-    }
-
-    log::info!(
-        state.logger,
-        "GetBlockInfoRequest({}) completed successfully",
-        block_num
-    );
-
-    let response = query_response.get_get_block_info();
-    Ok(Json(JsonBlockInfoResponse::from(response)))
-}
-
-/// Retrieve ledger information
-#[get("/ledger/local")]
-fn ledger_info(state: rocket::State<State>) -> Result<Json<JsonLedgerInfoResponse>, String> {
-    let mut query_request = QueryRequest::new();
-    query_request.set_get_ledger_info(Empty::new());
-
-    log::debug!(state.logger, "Enqueueing GetLedgerInfo Request");
-    let query = state.query_manager.enqueue_query(query_request);
-    let query_response = query.wait()?;
-
-    if query_response.has_error() {
-        log::error!(
-            state.logger,
-            "GetLedgerInfoRequest failed: {}",
-            query_response.get_error()
-        );
-        return Err(query_response.get_error().into());
-    }
-    if !query_response.has_get_ledger_info() {
-        log::error!(
-            state.logger,
-            "GetLedgerInfoRequest returned incorrect response type",
-        );
-        return Err("Incorrect response type received".into());
-    }
-
-    log::info!(state.logger, "GetLedgerInfoRequest completed successfully");
-
-    let response = query_response.get_get_ledger_info();
-    Ok(Json(JsonLedgerInfoResponse::from(response)))
-}
-
-#[get("/tx-out/<public_key_hex>/block-index")]
-fn tx_out_get_block_index_by_public_key(
-    state: rocket::State<State>,
-    public_key_hex: String,
-) -> Result<Json<JsonBlockIndexByTxPubKeyResponse>, String> {
-    let tx_out_public_key = hex::decode(&public_key_hex)
-        .map_err(|err| format!("Failed to decode hex public key: {}", err))?;
-
-    let mut tx_out_public_key_proto = CompressedRistretto::new();
-    tx_out_public_key_proto.set_data(tx_out_public_key);
-
-    let mut get_block_index_by_tx_pub_key_request = GetBlockIndexByTxPubKeyRequest::new();
-    get_block_index_by_tx_pub_key_request.set_tx_public_key(tx_out_public_key_proto);
-
-    let mut query_request = QueryRequest::new();
-    query_request.set_get_block_index_by_tx_pub_key(get_block_index_by_tx_pub_key_request);
-
-    log::debug!(
-        state.logger,
-        "Enqueueing GetBlockIndexByTxPubKey({}) Request",
-        public_key_hex
-    );
-    let query = state.query_manager.enqueue_query(query_request);
-    let query_response = query.wait()?;
-
-    if query_response.has_error() {
-        log::error!(
-            state.logger,
-            "GetBlockIndexByTxPubKey failed: {}",
-            query_response.get_error()
-        );
-        return Err(query_response.get_error().into());
-    }
-    if !query_response.has_get_block_index_by_tx_pub_key() {
-        log::error!(
-            state.logger,
-            "GetBlockIndexByTxPubKey returned incorrect response type",
-        );
-        return Err("Incorrect response type received".into());
-    }
-
-    log::info!(
-        state.logger,
-        "GetBlockIndexByTxPubKey completed successfully"
-    );
-
-    let response = query_response.get_get_block_index_by_tx_pub_key();
-    Ok(Json(JsonBlockIndexByTxPubKeyResponse::from(response)))
-}
 
 #[derive(Deserialize)]
 struct JsonSignedRequest {
     request: String,
     signature: Vec<u8>,
 }
+
 
 #[post("/signed-request", format = "json", data = "<request>")]
 fn signed_request(
@@ -462,12 +287,8 @@ fn main() {
         .mount(
             "/",
             routes![
+                unsigned_request,
                 signed_request,
-                processed_block,
-                block_info,
-                block_details,
-                ledger_info,
-                tx_out_get_block_index_by_public_key,
             ],
         )
         .manage(State {

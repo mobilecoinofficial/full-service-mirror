@@ -13,14 +13,14 @@ use crate::request::SignedJsonRequest;
 use grpcio::{ChannelBuilder, RpcStatus, RpcStatusCode};
 use mc_common::logger::{create_app_logger, log, o, Logger};
 use mc_mobilecoind_api::{
-    external::CompressedRistretto, mobilecoind_api_grpc::MobilecoindApiClient, MobilecoindUri,
+    external::CompressedRistretto, mobilecoind_api_grpc::MobilecoindApiClient,
 };
 use mc_mobilecoind_json::data_types::{
     JsonBlockDetailsResponse, JsonBlockIndexByTxPubKeyResponse, JsonBlockInfoResponse,
     JsonLedgerInfoResponse, JsonProcessedBlockResponse,
 };
 use mc_mobilecoind_mirror::{
-    mobilecoind_mirror_api::{EncryptedResponse, PollRequest, QueryRequest, QueryResponse},
+    mobilecoind_mirror_api::{UnencryptedResponse, EncryptedResponse, PollRequest, QueryRequest, QueryResponse},
     mobilecoind_mirror_api_grpc::MobilecoindMirrorClient,
     uri::MobilecoindMirrorUri,
 };
@@ -53,9 +53,9 @@ impl FromStr for MonitorId {
     about = "The private side of mobilecoind-mirror, receiving requests from the public side and forwarding them to mobilecoind"
 )]
 pub struct Config {
-    /// MobileCoinD URI.
-    #[structopt(long, default_value = "insecure-mobilecoind://127.0.0.1/")]
-    pub mobilecoind_uri: MobilecoindUri,
+    /// Wallet service URI.
+    #[structopt(long, default_value = "http://127.0.0.1:9090/")]
+    pub wallet_service_uri: String,
 
     /// URI for the public side of the mirror.
     #[structopt(long)]
@@ -65,14 +65,9 @@ pub struct Config {
     #[structopt(long, default_value = "100", parse(try_from_str=parse_duration_in_milliseconds))]
     pub poll_interval: Duration,
 
-    /// Monitor id to operate with. If not provided, mobilecoind will be queried and if it has only
-    /// one monitor id that one would be automatically chosen.
-    #[structopt(long)]
-    pub monitor_id: Option<MonitorId>,
-
-    /// Optional encryption public key. If provided, all request types but SignedRequest are
-    /// disabled. See `example-client.js` for an example on how to submit encrypted requests
-    /// through the mirror.
+    /// Optional encryption public key. If provided, only signed requests are accepted.
+    /// See `example-client.js` for an example on how to submit encrypted requests through
+    /// the mirror.
     #[structopt(long, parse(try_from_str=load_public_key))]
     pub mirror_key: Option<RSAPublicKey>,
 }
@@ -86,21 +81,10 @@ fn main() {
     let (logger, _global_logger_guard) = create_app_logger(o!());
     log::info!(
         logger,
-        "Starting mobilecoind mirror private forwarder on {}, connecting to mobilecoind {}",
+        "Starting mobilecoind mirror private forwarder on {}, connecting to wallet service at {}",
         config.mirror_public_uri,
-        config.mobilecoind_uri,
+        config.wallet_service_uri,
     );
-
-    // Set up the gRPC connection to the mobilecoind client
-    let mobilecoind_api_client = {
-        let env = Arc::new(grpcio::EnvBuilder::new().build());
-        let ch = ChannelBuilder::new(env)
-            .max_receive_message_len(std::i32::MAX)
-            .max_send_message_len(std::i32::MAX)
-            .connect_to_uri(&config.mobilecoind_uri, &logger);
-
-        MobilecoindApiClient::new(ch)
-    };
 
     // Set up the gRPC connection to the public side of the mirror.
     let mirror_api_client = {
@@ -114,19 +98,6 @@ fn main() {
 
         MobilecoindMirrorClient::new(ch)
     };
-
-    // Figure out which monitor id we are working with.
-    let monitor_id = config.monitor_id.map(|m| m.0).unwrap_or_else(|| {
-        let response = mobilecoind_api_client.get_monitor_list(&mc_mobilecoind_api::Empty::new()).expect("Failed querying mobilecoind for list of configured monitors");
-        match response.monitor_id_list.len() {
-            0 => panic!("Mobilecoind has no monitors configured"),
-            1 => response.monitor_id_list[0].to_vec(),
-            _ => {
-                let monitor_ids = response.get_monitor_id_list().iter().map(hex::encode).collect::<Vec<_>>();
-                panic!("Mobilecoind has more than one configured monitor, use --monitor-id to select which one to use. The following monitor ids were reported: {:?}", monitor_ids);
-            }
-    }});
-    log::info!(logger, "Monitor id: {}", hex::encode(&monitor_id));
 
     // Main polling loop.
     log::debug!(logger, "Entering main loop");
@@ -159,29 +130,29 @@ fn main() {
                     let query_logger = logger.new(o!("query_id" => query_id.clone()));
 
                     let response = {
-                        if let Some(mirror_key) = config.mirror_key.as_ref() {
-                            process_encrypted_request(
-                                &mobilecoind_api_client,
-                                &monitor_id,
-                                mirror_key,
-                                query_request,
-                                &query_logger,
-                            )
-                            .unwrap_or_else(|err| {
-                                log::error!(
-                                    query_logger,
-                                    "process_encrypted_request failed: {:?}",
-                                    err
-                                );
+                        // if let Some(mirror_key) = config.mirror_key.as_ref() {
+                            // TODO: update encrypted requests for full-service.
+                            // process_encrypted_request(
+                            //     &mobilecoind_api_client,
+                            //     &monitor_id,
+                            //     mirror_key,
+                            //     query_request,
+                            //     &query_logger,
+                            // )
+                            // .unwrap_or_else(|err| {
+                            //     log::error!(
+                            //         query_logger,
+                            //         "process_encrypted_request failed: {:?}",
+                            //         err
+                            //     );
 
-                                let mut err_query_response = QueryResponse::new();
-                                err_query_response.set_error(err.to_string());
-                                err_query_response
-                            })
-                        } else {
+                            //     let mut err_query_response = QueryResponse::new();
+                            //     err_query_response.set_error(err.to_string());
+                            //     err_query_response
+                            // })
+                        // } else {
                             process_request(
-                                &mobilecoind_api_client,
-                                &monitor_id,
+                                &config.wallet_service_uri,
                                 query_request,
                                 &query_logger,
                             )
@@ -192,7 +163,7 @@ fn main() {
                                 err_query_response.set_error(err.to_string());
                                 err_query_response
                             })
-                        }
+                        // }
                     };
 
                     pending_responses.insert(query_id.clone(), response);
@@ -213,112 +184,49 @@ fn main() {
 }
 
 fn process_request(
-    mobilecoind_api_client: &MobilecoindApiClient,
-    monitor_id: &[u8],
+    wallet_service_uri: &str,
     query_request: &QueryRequest,
     logger: &Logger,
-) -> grpcio::Result<QueryResponse> {
+) -> Result<QueryResponse, String> {
+    let mut _mirror_response = QueryResponse::new();
+
+    if !query_request.has_unsigned_request() {
+        return Err("Only processing unsigned requests".into())
+    }
+
+    let unsigned_request = query_request.get_unsigned_request();
+
+    // STUB: Check that the request is of an allowed type.
+    // return Err(grpcio::Error::RpcFailure(RpcStatus::new(
+    //     RpcStatusCode::INTERNAL,
+    //     Some("Unsupported request".into()),
+    // )))
+
+    log::debug!(
+        logger,
+        "Incoming unsigned request ({})",
+        unsigned_request.json_request
+    );
+
+    // Pass request along to full-service.
+    let client = reqwest::blocking::Client::new();
+    let res = client
+        .post(wallet_service_uri)
+        .header(reqwest::header::CONTENT_TYPE, "application/json")
+        .body(unsigned_request.json_request.clone())
+        .send()
+        .map_err(|e| e.to_string())?;
+
+    let json_response = res.text().map_err(|e| e.to_string())?;
+
+    let mut unencrypted_response = UnencryptedResponse::new();
+    unencrypted_response.set_json_response(json_response);
+
     let mut mirror_response = QueryResponse::new();
-
-    // GetProcessedBlock
-    if query_request.has_get_processed_block() {
-        let mirror_request = query_request.get_get_processed_block();
-        let mut mobilecoind_request = mc_mobilecoind_api::GetProcessedBlockRequest::new();
-        mobilecoind_request.set_monitor_id(monitor_id.to_vec());
-        mobilecoind_request.set_block(mirror_request.block);
-
-        log::debug!(
-            logger,
-            "Incoming get_processed_block({}, {}), forwarding to mobilecoind",
-            hex::encode(monitor_id),
-            mirror_request.block
-        );
-        let mobilecoind_response =
-            mobilecoind_api_client.get_processed_block(&mobilecoind_request)?;
-        log::info!(
-            logger,
-            "get_processed_block({}, {}) succeeded",
-            hex::encode(monitor_id),
-            mirror_request.block,
-        );
-
-        mirror_response.set_get_processed_block(mobilecoind_response);
-        return Ok(mirror_response);
-    }
-
-    // GetBlockRequest
-    if query_request.has_get_block() {
-        let mirror_request = query_request.get_get_block();
-
-        log::debug!(
-            logger,
-            "Incoming get_block({}), forwarding to mobilecoind",
-            mirror_request.block
-        );
-        let mobilecoind_response = mobilecoind_api_client.get_block(mirror_request)?;
-        log::info!(logger, "get_block({}) succeeded", mirror_request.block);
-
-        mirror_response.set_get_block(mobilecoind_response);
-        return Ok(mirror_response);
-    }
-
-    // GetBlockInfoRequest
-    if query_request.has_get_block_info() {
-        let mirror_request = query_request.get_get_block_info();
-
-        log::debug!(
-            logger,
-            "Incoming get_block_info({}), forwarding to mobilecoind",
-            mirror_request.block
-        );
-        let mobilecoind_response = mobilecoind_api_client.get_block_info(mirror_request)?;
-        log::info!(logger, "get_block_info({}) succeeded", mirror_request.block);
-
-        mirror_response.set_get_block_info(mobilecoind_response);
-        return Ok(mirror_response);
-    }
-
-    // GetLedgerInfoRequest
-    if query_request.has_get_ledger_info() {
-        log::debug!(
-            logger,
-            "Incoming get_ledger_info, forwarding to mobilecoind",
-        );
-        let mobilecoind_response =
-            mobilecoind_api_client.get_ledger_info(&mc_mobilecoind_api::Empty::new())?;
-        log::info!(logger, "get_ledger_info succeeded");
-
-        mirror_response.set_get_ledger_info(mobilecoind_response);
-        return Ok(mirror_response);
-    }
-
-    // GetBlockIndexByTxPubKeyRequest
-    if query_request.has_get_block_index_by_tx_pub_key() {
-        let mirror_request = query_request.get_get_block_index_by_tx_pub_key();
-
-        log::debug!(
-            logger,
-            "Incoming get_block_index_by_tx_pub_key({}), forwarding to mobilecoind",
-            hex::encode(mirror_request.get_tx_public_key().get_data())
-        );
-        let mobilecoind_response =
-            mobilecoind_api_client.get_block_index_by_tx_pub_key(mirror_request)?;
-        log::info!(
-            logger,
-            "Incoming get_block_index_by_tx_pub_key({}) succeeded",
-            hex::encode(mirror_request.get_tx_public_key().get_data())
-        );
-
-        mirror_response.set_get_block_index_by_tx_pub_key(mobilecoind_response);
-        return Ok(mirror_response);
-    }
-
-    // Unknown response.
-    Err(grpcio::Error::RpcFailure(RpcStatus::new(
-        RpcStatusCode::INTERNAL,
-        Some("Unsupported request".into()),
-    )))
+    mirror_response.set_unencrypted_response(unencrypted_response);
+    Ok(mirror_response)
 }
+
 
 fn process_encrypted_request(
     mobilecoind_api_client: &MobilecoindApiClient,
