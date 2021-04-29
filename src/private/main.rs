@@ -9,18 +9,12 @@
 mod crypto;
 mod request;
 
-use crate::request::SignedJsonRequest;
-use grpcio::{ChannelBuilder, RpcStatus, RpcStatusCode};
+use grpcio::{ChannelBuilder};
 use mc_common::logger::{create_app_logger, log, o, Logger};
-use mc_mobilecoind_api::{
-    external::CompressedRistretto, mobilecoind_api_grpc::MobilecoindApiClient,
-};
-use mc_mobilecoind_json::data_types::{
-    JsonBlockDetailsResponse, JsonBlockIndexByTxPubKeyResponse, JsonBlockInfoResponse,
-    JsonLedgerInfoResponse, JsonProcessedBlockResponse,
-};
 use mc_mobilecoind_mirror::{
-    mobilecoind_mirror_api::{UnencryptedResponse, EncryptedResponse, PollRequest, QueryRequest, QueryResponse},
+    mobilecoind_mirror_api::{
+        EncryptedResponse, PollRequest, QueryRequest, QueryResponse, UnencryptedResponse,
+    },
     mobilecoind_mirror_api_grpc::MobilecoindMirrorClient,
     uri::MobilecoindMirrorUri,
 };
@@ -30,6 +24,14 @@ use std::{
     collections::HashMap, convert::TryFrom, str::FromStr, sync::Arc, thread::sleep, time::Duration,
 };
 use structopt::StructOpt;
+
+const SUPPORTED_ENDPOINTS: &'static [&'static str] = &[
+    "get_transaction_logs",
+    "get_txo_object",
+    "get_transaction_object",
+    "get_block_object",
+    "get_network_status",
+];
 
 /// A wrapper to ease monitor id parsing from a hex string when using `StructOpt`.
 #[derive(Clone, Debug)]
@@ -130,40 +132,42 @@ fn main() {
                     let query_logger = logger.new(o!("query_id" => query_id.clone()));
 
                     let response = {
-                        // if let Some(mirror_key) = config.mirror_key.as_ref() {
-                            // TODO: update encrypted requests for full-service.
-                            // process_encrypted_request(
-                            //     &mobilecoind_api_client,
-                            //     &monitor_id,
-                            //     mirror_key,
-                            //     query_request,
-                            //     &query_logger,
-                            // )
-                            // .unwrap_or_else(|err| {
-                            //     log::error!(
-                            //         query_logger,
-                            //         "process_encrypted_request failed: {:?}",
-                            //         err
-                            //     );
-
-                            //     let mut err_query_response = QueryResponse::new();
-                            //     err_query_response.set_error(err.to_string());
-                            //     err_query_response
-                            // })
-                        // } else {
-                            process_request(
+                        if let Some(mirror_key) = config.mirror_key.as_ref() {
+                            process_encrypted_request(
                                 &config.wallet_service_uri,
+                                mirror_key,
                                 query_request,
                                 &query_logger,
                             )
                             .unwrap_or_else(|err| {
-                                log::error!(query_logger, "process_request failed: {:?}", err);
+                                log::error!(
+                                    query_logger,
+                                    "process_encrypted_request failed: {:?}",
+                                    err
+                                );
 
                                 let mut err_query_response = QueryResponse::new();
                                 err_query_response.set_error(err.to_string());
                                 err_query_response
                             })
-                        // }
+                        } else {
+                            process_unencrypted_request(
+                                &config.wallet_service_uri,
+                                query_request,
+                                &query_logger,
+                            )
+                            .unwrap_or_else(|err| {
+                                log::error!(
+                                    query_logger,
+                                    "process_unencrypted_request failed: {:?}",
+                                    err
+                                );
+
+                                let mut err_query_response = QueryResponse::new();
+                                err_query_response.set_error(err.to_string());
+                                err_query_response
+                            })
+                        }
                     };
 
                     pending_responses.insert(query_id.clone(), response);
@@ -183,7 +187,16 @@ fn main() {
     }
 }
 
-fn process_request(
+fn validate_method(json: &str)
+-> serde_json::Result<bool> {
+    let json: serde_json::Value = serde_json::from_str(json)?;
+    let method = json["method"].as_str().unwrap_or("");
+    Ok(
+        SUPPORTED_ENDPOINTS.iter().any(|&s| s == method)
+    )
+}
+
+fn process_unencrypted_request(
     wallet_service_uri: &str,
     query_request: &QueryRequest,
     logger: &Logger,
@@ -191,16 +204,21 @@ fn process_request(
     let mut _mirror_response = QueryResponse::new();
 
     if !query_request.has_unsigned_request() {
-        return Err("Only processing unsigned requests".into())
+        return Err("Only processing unsigned requests".into());
     }
 
     let unsigned_request = query_request.get_unsigned_request();
 
-    // STUB: Check that the request is of an allowed type.
-    // return Err(grpcio::Error::RpcFailure(RpcStatus::new(
-    //     RpcStatusCode::INTERNAL,
-    //     Some("Unsupported request".into()),
-    // )))
+    // Check that the request is of an allowed type.
+    match validate_method(&unsigned_request.json_request) {
+        Ok(true) => (),
+        Ok(false) => return Err("Unsupported request".into()),
+        Err(err) => {
+            let mut err_query_response = QueryResponse::new();
+            err_query_response.set_error(format!("Error parsing JSON request: {}", err));
+            return Ok(err_query_response);
+        },
+    }
 
     log::debug!(
         logger,
@@ -216,7 +234,6 @@ fn process_request(
         .body(unsigned_request.json_request.clone())
         .send()
         .map_err(|e| e.to_string())?;
-
     let json_response = res.text().map_err(|e| e.to_string())?;
 
     let mut unencrypted_response = UnencryptedResponse::new();
@@ -227,19 +244,14 @@ fn process_request(
     Ok(mirror_response)
 }
 
-
 fn process_encrypted_request(
-    mobilecoind_api_client: &MobilecoindApiClient,
-    monitor_id: &[u8],
+    wallet_service_uri: &str,
     mirror_key: &RSAPublicKey,
     query_request: &QueryRequest,
     logger: &Logger,
-) -> grpcio::Result<QueryResponse> {
+) -> Result<QueryResponse, String> {
     if !query_request.has_signed_request() {
-        return Err(grpcio::Error::RpcFailure(RpcStatus::new(
-            RpcStatusCode::INTERNAL,
-            Some("Only processing signed requests".into()),
-        )));
+        return Err("Only processing signed requests".into());
     }
 
     let signed_request = query_request.get_signed_request();
@@ -249,6 +261,8 @@ fn process_encrypted_request(
         "Incoming signed request ({})",
         signed_request.json_request
     );
+
+    // Verify request signature.
     let sig_is_valid = crypto::verify_sig(
         mirror_key,
         signed_request.json_request.as_bytes(),
@@ -262,127 +276,29 @@ fn process_encrypted_request(
         return Ok(err_query_response);
     }
 
-    let json_request: SignedJsonRequest = match serde_json::from_str(&signed_request.json_request) {
-        Ok(req) => req,
+    // Check that the request is of an allowed type.
+    match validate_method(&signed_request.json_request) {
+        Ok(true) => (),
+        Ok(false) => return Err("Unsupported request".into()),
         Err(err) => {
             let mut err_query_response = QueryResponse::new();
             err_query_response.set_error(format!("Error parsing JSON request: {}", err));
             return Ok(err_query_response);
-        }
-    };
+        },
+    }
 
-    let json_response_result = match json_request {
-        SignedJsonRequest::GetProcessedBlock { block } => {
-            let mut mobilecoind_request = mc_mobilecoind_api::GetProcessedBlockRequest::new();
-            mobilecoind_request.set_monitor_id(monitor_id.to_vec());
-            mobilecoind_request.set_block(block);
+    // Pass request along to full-service.
+    let client = reqwest::blocking::Client::new();
+    let res = client
+        .post(wallet_service_uri)
+        .header(reqwest::header::CONTENT_TYPE, "application/json")
+        .body(signed_request.json_request.clone())
+        .send()
+        .map_err(|e| e.to_string())?;
+    let json_response = res.text().map_err(|e| e.to_string())?;
 
-            log::debug!(
-                logger,
-                "Incoming get_processed_block({}, {}), forwarding to mobilecoind",
-                hex::encode(monitor_id),
-                block
-            );
-            let mobilecoind_response =
-                mobilecoind_api_client.get_processed_block(&mobilecoind_request)?;
-            log::info!(
-                logger,
-                "get_processed_block({}, {}) succeeded",
-                hex::encode(monitor_id),
-                block,
-            );
-
-            serde_json::to_vec(&JsonProcessedBlockResponse::from(&mobilecoind_response))
-        }
-
-        SignedJsonRequest::GetBlock { block } => {
-            let mut mobilecoind_request = mc_mobilecoind_api::GetBlockRequest::new();
-            mobilecoind_request.set_block(block);
-
-            log::debug!(
-                logger,
-                "Incoming get_block({}), forwarding to mobilecoind",
-                block
-            );
-            let mobilecoind_response = mobilecoind_api_client.get_block(&mobilecoind_request)?;
-            log::info!(logger, "get_block({}) succeeded", block);
-
-            serde_json::to_vec(&JsonBlockDetailsResponse::from(&mobilecoind_response))
-        }
-
-        SignedJsonRequest::GetBlockInfo { block } => {
-            let mut mobilecoind_request = mc_mobilecoind_api::GetBlockInfoRequest::new();
-            mobilecoind_request.set_block(block);
-
-            log::debug!(
-                logger,
-                "Incoming get_block_info({}), forwarding to mobilecoind",
-                block
-            );
-            let mobilecoind_response =
-                mobilecoind_api_client.get_block_info(&mobilecoind_request)?;
-            log::info!(logger, "get_block_info({}) succeeded", block);
-
-            serde_json::to_vec(&JsonBlockInfoResponse::from(&mobilecoind_response))
-        }
-
-        SignedJsonRequest::GetLedgerInfo => {
-            log::debug!(
-                logger,
-                "Incoming get_ledger_info(), forwarding to mobilecoind",
-            );
-            let mobilecoind_response =
-                mobilecoind_api_client.get_ledger_info(&mc_mobilecoind_api::Empty::new())?;
-            log::info!(logger, "get_ledger_info() succeeded");
-
-            serde_json::to_vec(&JsonLedgerInfoResponse::from(&mobilecoind_response))
-        }
-
-        SignedJsonRequest::GetBlockIndexByTxPubKey { tx_public_key } => {
-            log::debug!(
-                logger,
-                "Incoming get_block_index_by_tx_pubkey({}), forwarding to mobilecoind",
-                tx_public_key
-            );
-            let tx_out_public_key = hex::decode(&tx_public_key).map_err(|err| {
-                grpcio::Error::RpcFailure(RpcStatus::new(
-                    RpcStatusCode::INTERNAL,
-                    Some(format!("Failed to decode hex public key: {}", err)),
-                ))
-            })?;
-
-            let mut tx_out_public_key_proto = CompressedRistretto::new();
-            tx_out_public_key_proto.set_data(tx_out_public_key);
-
-            let mut mobilecoind_request = mc_mobilecoind_api::GetBlockIndexByTxPubKeyRequest::new();
-            mobilecoind_request.set_tx_public_key(tx_out_public_key_proto);
-
-            let mobilecoind_response =
-                mobilecoind_api_client.get_block_index_by_tx_pub_key(&mobilecoind_request)?;
-            log::info!(
-                logger,
-                "get_block_index_by_tx_pubkey({}) succeeded",
-                tx_public_key
-            );
-
-            serde_json::to_vec(&JsonBlockIndexByTxPubKeyResponse::from(
-                &mobilecoind_response,
-            ))
-        }
-    };
-    let json_response = json_response_result.map_err(|err| {
-        grpcio::Error::RpcFailure(RpcStatus::new(
-            RpcStatusCode::INTERNAL,
-            Some(format!("json serialization error: {}", err)),
-        ))
-    })?;
-
-    let encrypted_payload = crypto::encrypt(mirror_key, &json_response).map_err(|_err| {
-        grpcio::Error::RpcFailure(RpcStatus::new(
-            RpcStatusCode::INTERNAL,
-            Some("Encryption failed".into()),
-        ))
-    })?;
+    let encrypted_payload =
+        crypto::encrypt(mirror_key, &json_response.as_bytes()).map_err(|_e| "Encryption failed")?;
 
     let mut encrypted_response = EncryptedResponse::new();
     encrypted_response.set_payload(encrypted_payload);
