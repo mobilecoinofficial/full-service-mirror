@@ -3,7 +3,7 @@
 //! Utility entity for managing queries submitted over our rocket endpoint and resolved by the GRPC
 //! polling mechanism.
 
-use mc_mobilecoind_mirror::mobilecoind_mirror_api::{QueryRequest, QueryResponse};
+use mc_wallet_service_mirror::wallet_service_mirror_api::{QueryRequest, QueryResponse};
 use rand::RngCore;
 use std::{
     collections::HashMap,

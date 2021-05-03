@@ -1,13 +1,12 @@
 // Copyright (c) 2018-2020 MobileCoin Inc.
 
-// mobilecoind mirror data types and service descriptors.
+// Wallet service mirror data types and service descriptors.
 
 syntax = "proto3";
-import "mobilecoind_api.proto";
 
-package mobilecoind_mirror_api;
+package wallet_service_mirror_api;
 
-service MobilecoindMirror {
+service WalletServiceMirror {
     // The periodic poll method that queries for requests and returns replies.
     // This is sent from the private host to the public host.
     rpc Poll (PollRequest) returns (PollResponse) {}

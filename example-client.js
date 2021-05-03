@@ -12,7 +12,7 @@ const crypto = require('crypto');
 // Command line parsing
 if (process.argv.length != 6) {
     console.log(`Usage: node example-client.js <public mirror host> <public mirror port> <key file> <request>`);
-    console.log(`For example: node example-client.js 127.0.0.1 8001 mirror-client.pem '{"GetBlock": {"block": 0}}'`);
+    console.log(`For example: node example-client.js 127.0.0.1 9091 mirror-client.pem '{"GetBlock": {"block": 0}}'`);
     console.log('To generate keys please run generate-keys.js. See README.md for more details')
     return;
 }

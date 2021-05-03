@@ -1,10 +1,10 @@
 // Copyright (c) 2018-2020 MobileCoin Inc.
 
-//! The public side of mobilecoind-mirror.
+//! The public side of wallet-service-mirror.
 //! This program opens two listening ports:
 //! 1) A GRPC server for receiving incoming poll requests from the private side of the mirror
 //! 2) An http(s) server for receiving client requests which will then be forwarded to the
-//!    mobilecoind instance sitting behind the private part of the mirror.
+//!    wallet service instance sitting behind the private part of the mirror.
 
 #![feature(decl_macro)]
 
@@ -14,9 +14,9 @@ mod utils;
 
 use grpcio::{EnvBuilder, ServerBuilder};
 use mc_common::logger::{create_app_logger, log, o, Logger};
-use mc_mobilecoind_mirror::{
-    mobilecoind_mirror_api::{QueryRequest, UnsignedRequest, SignedRequest},
-    uri::MobilecoindMirrorUri,
+use mc_wallet_service_mirror::{
+    wallet_service_mirror_api::{QueryRequest, UnsignedRequest, SignedRequest},
+    uri::WalletServiceMirrorUri,
 };
 use mc_util_grpc::{BuildInfoService, ConnectionUriGrpcioServer, HealthService};
 use mc_util_uri::{ConnectionUri, Uri, UriScheme};
@@ -36,7 +36,7 @@ use structopt::StructOpt;
 
 pub type ClientUri = Uri<ClientUriScheme>;
 
-/// Mobilecoind Mirror Uri Scheme
+/// Wallet Service Mirror Uri Scheme
 #[derive(Debug, Hash, Ord, PartialOrd, Eq, PartialEq, Clone)]
 pub struct ClientUriScheme {}
 impl UriScheme for ClientUriScheme {
@@ -52,13 +52,13 @@ impl UriScheme for ClientUriScheme {
 /// Command line config
 #[derive(Clone, Debug, StructOpt)]
 #[structopt(
-    name = "mobilecoind-mirror-public",
-    about = "The public side of mobilecoind-mirror, receiving requests from clients and forwarding them to mobilecoind through the private side of the mirror"
+    name = "wallet-service-mirror-public",
+    about = "The public side of wallet-service-mirror, receiving requests from clients and forwarding them to the wallet service through the private side of the mirror"
 )]
 pub struct Config {
     /// Listening URI for the private-public interface connection (GRPC).
     #[structopt(long)]
-    pub mirror_listen_uri: MobilecoindMirrorUri,
+    pub mirror_listen_uri: WalletServiceMirrorUri,
 
     /// Listening URI for client requests (HTTP(S)).
     #[structopt(long)]
@@ -223,7 +223,7 @@ fn main() {
     let (logger, _global_logger_guard) = create_app_logger(o!());
     log::info!(
         logger,
-        "Starting mobilecoind mirror public forwarder, listening for mirror requests on {} and client requests on {}",
+        "Starting wallet service mirror public forwarder, listening for mirror requests on {} and client requests on {}",
         config.mirror_listen_uri.addr(),
         config.client_listen_uri.addr(),
     );

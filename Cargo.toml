@@ -1,25 +1,23 @@
 cargo-features = ["resolver"]
 
 [package]
-name = "mc-mobilecoind-mirror"
+name = "mc-wallet-service-mirror"
 version = "0.6.0-pre1"
 authors = ["MobileCoin"]
 edition = "2018"
 resolver = "2"
 
 [[bin]]
-name = "mobilecoind-mirror-private"
+name = "wallet-service-mirror-private"
 path = "src/private/main.rs"
 
 [[bin]]
-name = "mobilecoind-mirror-public"
+name = "wallet-service-mirror-public"
 path = "src/public/main.rs"
 
 [dependencies]
 mc-api = { path = "mobilecoin/api" }
 mc-common = { path = "mobilecoin/common", features = ["loggers"] }
-mc-mobilecoind-api = { path = "mobilecoin/mobilecoind/api" }
-mc-mobilecoind-json = { path = "mobilecoin/mobilecoind-json" }
 mc-util-grpc = { path = "mobilecoin/util/grpc" }
 mc-util-uri = { path = "mobilecoin/util/uri" }
 
@@ -58,10 +56,6 @@ cargo-emit = "0.1.1"
 [patch.crates-io]
 prost = { git = "https://github.com/danburkert/prost", rev = "6113789f70b69709820becba4242824b4fb3ffec" }
 prost-derive = { git = "https://github.com/danburkert/prost", rev = "6113789f70b69709820becba4242824b4fb3ffec" }
-
-# slog is patched in order to build in no_std config with dynamic_keys feature on
-# https://github.com/slog-rs/slog/pull/268
-slog = { git = "https://github.com/mobilecoinofficial/slog", rev = "cc1562258b81353426d17a55b7447256fa6eabbf" }
 
 # Patched to depend on crates that depend on digest 0.9
 bulletproofs = { git = "https://github.com/eranrund/bulletproofs", rev = "e8e8ef45ecc6d31f1a9525140edc977351d0f780" }

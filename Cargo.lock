@@ -1768,71 +1768,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mc-mobilecoind-api"
-version = "1.0.1-pre1"
-dependencies = [
- "cargo-emit",
- "futures",
- "grpcio",
- "mc-api",
- "mc-util-build-grpc",
- "mc-util-build-script",
- "mc-util-uri",
- "protobuf",
-]
-
-[[package]]
-name = "mc-mobilecoind-json"
-version = "1.0.1-pre1"
-dependencies = [
- "grpcio",
- "hex",
- "mc-api",
- "mc-common",
- "mc-mobilecoind-api",
- "mc-util-grpc",
- "protobuf",
- "rocket",
- "rocket_contrib",
- "serde",
- "serde_derive",
- "structopt",
-]
-
-[[package]]
-name = "mc-mobilecoind-mirror"
-version = "0.6.0-pre1"
-dependencies = [
- "cargo-emit",
- "digest",
- "futures",
- "generic-array 0.12.3",
- "grpcio",
- "hex",
- "mc-api",
- "mc-common",
- "mc-mobilecoind-api",
- "mc-mobilecoind-json",
- "mc-util-build-grpc",
- "mc-util-build-script",
- "mc-util-grpc",
- "mc-util-uri",
- "pem",
- "protobuf",
- "rand 0.7.3",
- "reqwest",
- "rocket",
- "rocket_contrib",
- "rsa",
- "serde",
- "serde_derive",
- "serde_json",
- "sha2",
- "structopt",
- "x509-parser",
-]
-
-[[package]]
 name = "mc-sgx-build"
 version = "1.0.1-pre1"
 dependencies = [
@@ -2010,6 +1945,37 @@ dependencies = [
  "percent-encoding 2.1.0",
  "serde",
  "url 2.2.1",
+]
+
+[[package]]
+name = "mc-wallet-service-mirror"
+version = "0.6.0-pre1"
+dependencies = [
+ "cargo-emit",
+ "digest",
+ "futures",
+ "generic-array 0.12.3",
+ "grpcio",
+ "hex",
+ "mc-api",
+ "mc-common",
+ "mc-util-build-grpc",
+ "mc-util-build-script",
+ "mc-util-grpc",
+ "mc-util-uri",
+ "pem",
+ "protobuf",
+ "rand 0.7.3",
+ "reqwest",
+ "rocket",
+ "rocket_contrib",
+ "rsa",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "sha2",
+ "structopt",
+ "x509-parser",
 ]
 
 [[package]]
@@ -4238,8 +4204,3 @@ dependencies = [
  "syn 1.0.71",
  "synstructure",
 ]
-
-[[patch.unused]]
-name = "slog"
-version = "2.6.0"
-source = "git+https://github.com/mobilecoinofficial/slog?rev=cc1562258b81353426d17a55b7447256fa6eabbf#cc1562258b81353426d17a55b7447256fa6eabbf"

@@ -1,9 +1,9 @@
 // Copyright (c) 2018-2020 MobileCoin Inc.
 
-//! The private side of mobilecoind-mirror.
-//! This program forms outgoing connections to both a mobilecoind instance, as well as a public
-//! mobilecoind-mirror instance. It then proceeds to poll the public side of the mirror for
-//! requests which it then forwards to mobilecoind. When a response is received it is then
+//! The private side of wallet-service-mirror.
+//! This program forms outgoing connections to both a wallet service instance, as well as a public
+//! wallet-service-mirror instance. It then proceeds to poll the public side of the mirror for
+//! requests which it then forwards to the wallet service. When a response is received it is then
 //! forwarded back to the mirror.
 
 mod crypto;
@@ -11,12 +11,12 @@ mod request;
 
 use grpcio::{ChannelBuilder};
 use mc_common::logger::{create_app_logger, log, o, Logger};
-use mc_mobilecoind_mirror::{
-    mobilecoind_mirror_api::{
+use mc_wallet_service_mirror::{
+    wallet_service_mirror_api::{
         EncryptedResponse, PollRequest, QueryRequest, QueryResponse, UnencryptedResponse,
     },
-    mobilecoind_mirror_api_grpc::MobilecoindMirrorClient,
-    uri::MobilecoindMirrorUri,
+    wallet_service_mirror_api_grpc::WalletServiceMirrorClient,
+    uri::WalletServiceMirrorUri,
 };
 use mc_util_grpc::ConnectionUriGrpcioChannel;
 use rsa::RSAPublicKey;
@@ -29,7 +29,7 @@ const SUPPORTED_ENDPOINTS: &'static [&'static str] = &[
     "get_transaction_logs",
     "get_txo_object",
     "get_transaction_object",
-    "get_block_object",
+    "get_block",
     "get_network_status",
 ];
 
@@ -51,8 +51,8 @@ impl FromStr for MonitorId {
 /// Command line config
 #[derive(Clone, Debug, StructOpt)]
 #[structopt(
-    name = "mobilecoind-mirror-private",
-    about = "The private side of mobilecoind-mirror, receiving requests from the public side and forwarding them to mobilecoind"
+    name = "wallet-service-mirror-private",
+    about = "The private side of wallet-service-mirror, receiving requests from the public side and forwarding them to the wallet service."
 )]
 pub struct Config {
     /// Wallet service URI.
@@ -61,7 +61,7 @@ pub struct Config {
 
     /// URI for the public side of the mirror.
     #[structopt(long)]
-    pub mirror_public_uri: MobilecoindMirrorUri,
+    pub mirror_public_uri: WalletServiceMirrorUri,
 
     /// How many milliseconds to wait between polling.
     #[structopt(long, default_value = "100", parse(try_from_str=parse_duration_in_milliseconds))]
@@ -83,7 +83,7 @@ fn main() {
     let (logger, _global_logger_guard) = create_app_logger(o!());
     log::info!(
         logger,
-        "Starting mobilecoind mirror private forwarder on {}, connecting to wallet service at {}",
+        "Starting wallet-service-mirror private forwarder on {}, connecting to wallet service at {}",
         config.mirror_public_uri,
         config.wallet_service_uri,
     );
@@ -98,7 +98,7 @@ fn main() {
             .initial_reconnect_backoff(Duration::from_millis(1000))
             .connect_to_uri(&config.mirror_public_uri, &logger);
 
-        MobilecoindMirrorClient::new(ch)
+        WalletServiceMirrorClient::new(ch)
     };
 
     // Main polling loop.

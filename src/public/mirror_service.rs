@@ -1,9 +1,9 @@
 use crate::query::QueryManager;
 use grpcio::{RpcContext, RpcStatus, Service, UnarySink};
 use mc_common::logger::{log, Logger};
-use mc_mobilecoind_mirror::{
-    mobilecoind_mirror_api::{PollRequest, PollResponse},
-    mobilecoind_mirror_api_grpc::{create_mobilecoind_mirror, MobilecoindMirror},
+use mc_wallet_service_mirror::{
+    wallet_service_mirror_api::{PollRequest, PollResponse},
+    wallet_service_mirror_api_grpc::{create_wallet_service_mirror, WalletServiceMirror},
 };
 use mc_util_grpc::{rpc_logger, send_result};
 
@@ -25,7 +25,7 @@ impl MirrorService {
     }
 
     pub fn into_service(self) -> Service {
-        create_mobilecoind_mirror(self)
+        create_wallet_service_mirror(self)
     }
 
     fn poll_impl(&self, request: PollRequest, logger: &Logger) -> Result<PollResponse, RpcStatus> {
@@ -53,7 +53,7 @@ impl MirrorService {
     }
 }
 
-impl MobilecoindMirror for MirrorService {
+impl WalletServiceMirror for MirrorService {
     fn poll(&mut self, ctx: RpcContext, request: PollRequest, sink: UnarySink<PollResponse>) {
         let logger = rpc_logger(&ctx, &self.logger);
         send_result(ctx, sink, self.poll_impl(request, &logger), &logger)
