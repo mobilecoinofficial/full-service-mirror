@@ -7,18 +7,17 @@
 //! forwarded back to the mirror.
 
 mod crypto;
-mod request;
 
-use grpcio::{ChannelBuilder};
+use grpcio::ChannelBuilder;
 use mc_common::logger::{create_app_logger, log, o, Logger};
+use mc_util_grpc::ConnectionUriGrpcioChannel;
 use mc_wallet_service_mirror::{
+    uri::WalletServiceMirrorUri,
     wallet_service_mirror_api::{
         EncryptedResponse, PollRequest, QueryRequest, QueryResponse, UnencryptedResponse,
     },
     wallet_service_mirror_api_grpc::WalletServiceMirrorClient,
-    uri::WalletServiceMirrorUri,
 };
-use mc_util_grpc::ConnectionUriGrpcioChannel;
 use rsa::RSAPublicKey;
 use std::{
     collections::HashMap, convert::TryFrom, str::FromStr, sync::Arc, thread::sleep, time::Duration,
@@ -187,13 +186,10 @@ fn main() {
     }
 }
 
-fn validate_method(json: &str)
--> serde_json::Result<bool> {
+fn validate_method(json: &str) -> serde_json::Result<bool> {
     let json: serde_json::Value = serde_json::from_str(json)?;
     let method = json["method"].as_str().unwrap_or("");
-    Ok(
-        SUPPORTED_ENDPOINTS.iter().any(|&s| s == method)
-    )
+    Ok(SUPPORTED_ENDPOINTS.iter().any(|&s| s == method))
 }
 
 fn process_unencrypted_request(
@@ -201,8 +197,6 @@ fn process_unencrypted_request(
     query_request: &QueryRequest,
     logger: &Logger,
 ) -> Result<QueryResponse, String> {
-    let mut _mirror_response = QueryResponse::new();
-
     if !query_request.has_unsigned_request() {
         return Err("Only processing unsigned requests".into());
     }
@@ -217,7 +211,7 @@ fn process_unencrypted_request(
             let mut err_query_response = QueryResponse::new();
             err_query_response.set_error(format!("Error parsing JSON request: {}", err));
             return Ok(err_query_response);
-        },
+        }
     }
 
     log::debug!(
@@ -284,7 +278,7 @@ fn process_encrypted_request(
             let mut err_query_response = QueryResponse::new();
             err_query_response.set_error(format!("Error parsing JSON request: {}", err));
             return Ok(err_query_response);
-        },
+        }
     }
 
     // Pass request along to full-service.
