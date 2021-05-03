@@ -12,6 +12,7 @@ mod mirror_service;
 mod query;
 mod utils;
 
+use std::io::Read;
 use grpcio::{EnvBuilder, ServerBuilder};
 use mc_common::logger::{create_app_logger, log, o, Logger};
 use mc_wallet_service_mirror::{
@@ -106,22 +107,35 @@ impl From<String> for BadRequest {
 }
 
 
-#[post("/unsigned-request", format = "json", data = "<request>")]
+#[post("/unsigned-request", format = "json", data = "<request_data>")]
 fn unsigned_request(
     state: rocket::State<State>,
-    request: String,
+    request_data: rocket::Data,
 ) -> Result<String, BadRequest> {
+    let mut request = String::new();
+    let res = request_data.open().read_to_string(&mut request);
+    if res.is_err() {
+        let msg = "Could not read request data for unsigned request.";
+        log::error!(
+            state.logger,
+            "{}",
+            msg,
+        );
+        return Err(msg.into());
+    }
+
+    log::debug!(
+        state.logger,
+        "Enqueueing UnsignedRequest({})",
+        &request,
+    );
+
     let mut unsigned_request = UnsignedRequest::new();
     unsigned_request.set_json_request(request.clone());
 
     let mut query_request = QueryRequest::new();
     query_request.set_unsigned_request(unsigned_request);
 
-    log::debug!(
-        state.logger,
-        "Enqueueing UnsignedRequest({})",
-        request,
-    );
     let query = state.query_manager.enqueue_query(query_request);
     let query_response = query.wait()?;
 
