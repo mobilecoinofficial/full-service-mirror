@@ -16,10 +16,10 @@ name = "wallet-service-mirror-public"
 path = "src/public/main.rs"
 
 [dependencies]
-mc-api = { path = "mobilecoin/api" }
-mc-common = { path = "mobilecoin/common", features = ["loggers"] }
-mc-util-grpc = { path = "mobilecoin/util/grpc" }
-mc-util-uri = { path = "mobilecoin/util/uri" }
+mc-api = { path = "full-service/mobilecoin/api" }
+mc-common = { path = "full-service/mobilecoin/common", features = ["loggers"] }
+mc-util-grpc = { path = "full-service/mobilecoin/util/grpc" }
+mc-util-uri = { path = "full-service/mobilecoin/util/uri" }
 
 digest = "0.9.0"
 futures = "0.3"
@@ -48,8 +48,8 @@ rsa = { git = "https://github.com/RustCrypto/RSA", rev = "4274e838d112a0aa194a21
 # Go figure ¯\_(ツ)_/¯
 serde = { version = "1", default-features = false, features = ["alloc", "derive"] }
 
-mc-util-build-grpc = { path = "mobilecoin/util/build/grpc" }
-mc-util-build-script = { path = "mobilecoin/util/build/script" }
+mc-util-build-grpc = { path = "full-service/mobilecoin/util/build/grpc" }
+mc-util-build-script = { path = "full-service/mobilecoin/util/build/script" }
 
 cargo-emit = "0.1.1"
 
