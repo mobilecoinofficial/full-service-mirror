@@ -1,4 +1,3 @@
-[submodule "mobilecoin"]
-	path = mobilecoin
-	url = https://github.com/mobilecoinfoundation/mobilecoin
-	branch = master
+[submodule "full-service"]
+	path = full-service
+	url = https://github.com/mobilecoinofficial/full-service.git

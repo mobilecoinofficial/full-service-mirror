@@ -1,10 +1,10 @@
-// Copyright (c) 2018-2020 MobileCoin Inc.
+// Copyright (c) 2018-2021 MobileCoin Inc.
 
-//! The public side of mobilecoind-mirror.
+//! The public side of wallet-service-mirror.
 //! This program opens two listening ports:
 //! 1) A GRPC server for receiving incoming poll requests from the private side of the mirror
 //! 2) An http(s) server for receiving client requests which will then be forwarded to the
-//!    mobilecoind instance sitting behind the private part of the mirror.
+//!    wallet service instance sitting behind the private part of the mirror.
 
 #![feature(decl_macro)]
 
@@ -14,25 +14,16 @@ mod utils;
 
 use grpcio::{EnvBuilder, ServerBuilder};
 use mc_common::logger::{create_app_logger, log, o, Logger};
-use mc_mobilecoind_api::{
-    external::CompressedRistretto, Empty, GetBlockIndexByTxPubKeyRequest, GetBlockInfoRequest,
-    GetBlockRequest,
-};
-use mc_mobilecoind_json::data_types::{
-    JsonBlockDetailsResponse, JsonBlockIndexByTxPubKeyResponse, JsonBlockInfoResponse,
-    JsonLedgerInfoResponse, JsonProcessedBlockResponse,
-};
-use mc_mobilecoind_mirror::{
-    mobilecoind_mirror_api::{GetProcessedBlockRequest, QueryRequest, SignedRequest},
-    uri::MobilecoindMirrorUri,
-};
 use mc_util_grpc::{BuildInfoService, ConnectionUriGrpcioServer, HealthService};
 use mc_util_uri::{ConnectionUri, Uri, UriScheme};
+use mc_wallet_service_mirror::{
+    uri::WalletServiceMirrorUri,
+    wallet_service_mirror_api::{QueryRequest, SignedRequest, UnsignedRequest},
+};
 use mirror_service::MirrorService;
 use query::QueryManager;
 use rocket::{
     config::{Config as RocketConfig, Environment as RocketEnvironment},
-    get,
     http::Status,
     post,
     response::Responder,
@@ -40,12 +31,12 @@ use rocket::{
 };
 use rocket_contrib::json::Json;
 use serde::Deserialize;
-use std::sync::Arc;
+use std::{io::Read, sync::Arc};
 use structopt::StructOpt;
 
 pub type ClientUri = Uri<ClientUriScheme>;
 
-/// Mobilecoind Mirror Uri Scheme
+/// Wallet Service Mirror Uri Scheme
 #[derive(Debug, Hash, Ord, PartialOrd, Eq, PartialEq, Clone)]
 pub struct ClientUriScheme {}
 impl UriScheme for ClientUriScheme {
@@ -61,13 +52,13 @@ impl UriScheme for ClientUriScheme {
 /// Command line config
 #[derive(Clone, Debug, StructOpt)]
 #[structopt(
-    name = "mobilecoind-mirror-public",
-    about = "The public side of mobilecoind-mirror, receiving requests from clients and forwarding them to mobilecoind through the private side of the mirror"
+    name = "wallet-service-mirror-public",
+    about = "The public side of wallet-service-mirror, receiving requests from clients and forwarding them to the wallet service through the private side of the mirror"
 )]
 pub struct Config {
     /// Listening URI for the private-public interface connection (GRPC).
     #[structopt(long)]
-    pub mirror_listen_uri: MobilecoindMirrorUri,
+    pub mirror_listen_uri: WalletServiceMirrorUri,
 
     /// Listening URI for client requests (HTTP(S)).
     #[structopt(long)]
@@ -114,220 +105,56 @@ impl From<String> for BadRequest {
     }
 }
 
-/// Retreive processed block information.
-#[get("/processed-block/<block_num>")]
-fn processed_block(
+#[post("/unsigned-request", format = "json", data = "<request_data>")]
+fn unsigned_request(
     state: rocket::State<State>,
-    block_num: u64,
-) -> Result<Json<JsonProcessedBlockResponse>, String> {
-    let mut get_processed_block = GetProcessedBlockRequest::new();
-    get_processed_block.set_block(block_num);
+    request_data: rocket::Data,
+) -> Result<String, BadRequest> {
+    let mut request = String::new();
+    let res = request_data.open().read_to_string(&mut request);
+    if res.is_err() {
+        let msg = "Could not read request data for unsigned request.";
+        log::error!(state.logger, "{}", msg,);
+        return Err(msg.into());
+    }
+
+    log::debug!(state.logger, "Enqueueing UnsignedRequest({})", &request,);
+
+    let mut unsigned_request = UnsignedRequest::new();
+    unsigned_request.set_json_request(request.clone());
 
     let mut query_request = QueryRequest::new();
-    query_request.set_get_processed_block(get_processed_block);
+    query_request.set_unsigned_request(unsigned_request);
 
-    log::debug!(
-        state.logger,
-        "Enqueueing GetProcessedBlockRequest({})",
-        block_num
-    );
     let query = state.query_manager.enqueue_query(query_request);
     let query_response = query.wait()?;
 
     if query_response.has_error() {
         log::error!(
             state.logger,
-            "GetProcessedBlockRequest({}) failed: {}",
-            block_num,
+            "UnsignedRequest({}) failed: {}",
+            request,
             query_response.get_error()
         );
         return Err(query_response.get_error().into());
     }
-    if !query_response.has_get_processed_block() {
+    if !query_response.has_unencrypted_response() {
         log::error!(
             state.logger,
-            "GetProcessedBlockRequest({}) returned incorrect response type",
-            block_num
-        );
-        return Err("Incorrect response type received".into());
-    }
-
-    let response = query_response.get_get_processed_block();
-    Ok(Json(JsonProcessedBlockResponse::from(response)))
-}
-
-/// Retrieve a single block.
-#[get("/ledger/blocks/<block_num>")]
-fn block_details(
-    state: rocket::State<State>,
-    block_num: u64,
-) -> Result<Json<JsonBlockDetailsResponse>, String> {
-    let mut get_block = GetBlockRequest::new();
-    get_block.set_block(block_num);
-
-    let mut query_request = QueryRequest::new();
-    query_request.set_get_block(get_block);
-
-    log::debug!(state.logger, "Enqueueing GetBlockRequest({})", block_num);
-    let query = state.query_manager.enqueue_query(query_request);
-    let query_response = query.wait()?;
-
-    if query_response.has_error() {
-        log::error!(
-            state.logger,
-            "GetBlockRequest({}) failed: {}",
-            block_num,
-            query_response.get_error()
-        );
-        return Err(query_response.get_error().into());
-    }
-    if !query_response.has_get_block() {
-        log::error!(
-            state.logger,
-            "GetBlockRequest({}) returned incorrect response type",
-            block_num
+            "UnsignedRequest({}) returned incorrect response type",
+            request,
         );
         return Err("Incorrect response type received".into());
     }
 
     log::info!(
         state.logger,
-        "GetBlockRequest({}) completed successfully",
-        block_num
+        "UnsignedRequest({}) completed successfully",
+        request,
     );
 
-    let response = query_response.get_get_block();
-    Ok(Json(JsonBlockDetailsResponse::from(response)))
-}
-
-/// Retrieve a block header
-#[get("/ledger/blocks/<block_num>/header")]
-fn block_info(
-    state: rocket::State<State>,
-    block_num: u64,
-) -> Result<Json<JsonBlockInfoResponse>, String> {
-    let mut get_block_info = GetBlockInfoRequest::new();
-    get_block_info.set_block(block_num);
-
-    let mut query_request = QueryRequest::new();
-    query_request.set_get_block_info(get_block_info);
-
-    log::debug!(
-        state.logger,
-        "Enqueueing GetBlockInfoRequest({})",
-        block_num
-    );
-    let query = state.query_manager.enqueue_query(query_request);
-    let query_response = query.wait()?;
-
-    if query_response.has_error() {
-        log::error!(
-            state.logger,
-            "GetBlockInfoRequest({}) failed: {}",
-            block_num,
-            query_response.get_error()
-        );
-        return Err(query_response.get_error().into());
-    }
-    if !query_response.has_get_block_info() {
-        log::error!(
-            state.logger,
-            "GetBlockInfoRequest({}) returned incorrect response type",
-            block_num
-        );
-        return Err("Incorrect response type received".into());
-    }
-
-    log::info!(
-        state.logger,
-        "GetBlockInfoRequest({}) completed successfully",
-        block_num
-    );
-
-    let response = query_response.get_get_block_info();
-    Ok(Json(JsonBlockInfoResponse::from(response)))
-}
-
-/// Retrieve ledger information
-#[get("/ledger/local")]
-fn ledger_info(state: rocket::State<State>) -> Result<Json<JsonLedgerInfoResponse>, String> {
-    let mut query_request = QueryRequest::new();
-    query_request.set_get_ledger_info(Empty::new());
-
-    log::debug!(state.logger, "Enqueueing GetLedgerInfo Request");
-    let query = state.query_manager.enqueue_query(query_request);
-    let query_response = query.wait()?;
-
-    if query_response.has_error() {
-        log::error!(
-            state.logger,
-            "GetLedgerInfoRequest failed: {}",
-            query_response.get_error()
-        );
-        return Err(query_response.get_error().into());
-    }
-    if !query_response.has_get_ledger_info() {
-        log::error!(
-            state.logger,
-            "GetLedgerInfoRequest returned incorrect response type",
-        );
-        return Err("Incorrect response type received".into());
-    }
-
-    log::info!(state.logger, "GetLedgerInfoRequest completed successfully");
-
-    let response = query_response.get_get_ledger_info();
-    Ok(Json(JsonLedgerInfoResponse::from(response)))
-}
-
-#[get("/tx-out/<public_key_hex>/block-index")]
-fn tx_out_get_block_index_by_public_key(
-    state: rocket::State<State>,
-    public_key_hex: String,
-) -> Result<Json<JsonBlockIndexByTxPubKeyResponse>, String> {
-    let tx_out_public_key = hex::decode(&public_key_hex)
-        .map_err(|err| format!("Failed to decode hex public key: {}", err))?;
-
-    let mut tx_out_public_key_proto = CompressedRistretto::new();
-    tx_out_public_key_proto.set_data(tx_out_public_key);
-
-    let mut get_block_index_by_tx_pub_key_request = GetBlockIndexByTxPubKeyRequest::new();
-    get_block_index_by_tx_pub_key_request.set_tx_public_key(tx_out_public_key_proto);
-
-    let mut query_request = QueryRequest::new();
-    query_request.set_get_block_index_by_tx_pub_key(get_block_index_by_tx_pub_key_request);
-
-    log::debug!(
-        state.logger,
-        "Enqueueing GetBlockIndexByTxPubKey({}) Request",
-        public_key_hex
-    );
-    let query = state.query_manager.enqueue_query(query_request);
-    let query_response = query.wait()?;
-
-    if query_response.has_error() {
-        log::error!(
-            state.logger,
-            "GetBlockIndexByTxPubKey failed: {}",
-            query_response.get_error()
-        );
-        return Err(query_response.get_error().into());
-    }
-    if !query_response.has_get_block_index_by_tx_pub_key() {
-        log::error!(
-            state.logger,
-            "GetBlockIndexByTxPubKey returned incorrect response type",
-        );
-        return Err("Incorrect response type received".into());
-    }
-
-    log::info!(
-        state.logger,
-        "GetBlockIndexByTxPubKey completed successfully"
-    );
-
-    let response = query_response.get_get_block_index_by_tx_pub_key();
-    Ok(Json(JsonBlockIndexByTxPubKeyResponse::from(response)))
+    let response = query_response.get_unencrypted_response();
+    Ok(response.get_json_response().to_string())
 }
 
 #[derive(Deserialize)]
@@ -398,7 +225,7 @@ fn main() {
     let (logger, _global_logger_guard) = create_app_logger(o!());
     log::info!(
         logger,
-        "Starting mobilecoind mirror public forwarder, listening for mirror requests on {} and client requests on {}",
+        "Starting wallet service mirror public forwarder, listening for mirror requests on {} and client requests on {}",
         config.mirror_listen_uri.addr(),
         config.client_listen_uri.addr(),
     );
@@ -423,7 +250,7 @@ fn main() {
         .register_service(build_info_service)
         .register_service(health_service)
         .register_service(mirror_service)
-        .bind_using_uri(&config.mirror_listen_uri);
+        .bind_using_uri(&config.mirror_listen_uri, logger.clone());
 
     let mut server = server_builder.build().unwrap();
     server.start();
@@ -459,17 +286,7 @@ fn main() {
 
     log::info!(logger, "Starting client web server");
     rocket::custom(rocket_config)
-        .mount(
-            "/",
-            routes![
-                signed_request,
-                processed_block,
-                block_info,
-                block_details,
-                ledger_info,
-                tx_out_get_block_index_by_public_key,
-            ],
-        )
+        .mount("/", routes![unsigned_request, signed_request,])
         .manage(State {
             query_manager,
             logger,

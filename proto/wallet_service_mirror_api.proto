@@ -1,14 +1,12 @@
 // Copyright (c) 2018-2020 MobileCoin Inc.
 
-// mobilecoind mirror data types and service descriptors.
+// Wallet service mirror data types and service descriptors.
 
 syntax = "proto3";
-import "mobilecoind_api.proto";
-import "google/protobuf/empty.proto";
 
-package mobilecoind_mirror_api;
+package wallet_service_mirror_api;
 
-service MobilecoindMirror {
+service WalletServiceMirror {
     // The periodic poll method that queries for requests and returns replies.
     // This is sent from the private host to the public host.
     rpc Poll (PollRequest) returns (PollResponse) {}
@@ -18,12 +16,8 @@ service MobilecoindMirror {
 // When adding request types, remember to add them in `src/private/request.rs` as well.
 message QueryRequest {
     oneof request {
-        SignedRequest signed_request = 1;
-        GetProcessedBlockRequest get_processed_block = 2;
-        mobilecoind_api.GetBlockRequest get_block = 3;
-        mobilecoind_api.GetBlockInfoRequest get_block_info = 4;
-        google.protobuf.Empty get_ledger_info = 5;
-        mobilecoind_api.GetBlockIndexByTxPubKeyRequest get_block_index_by_tx_pub_key = 6;
+        UnsignedRequest unsigned_request = 1;
+        SignedRequest signed_request = 2;
     }
 }
 
@@ -31,12 +25,8 @@ message QueryRequest {
 message QueryResponse {
     oneof response {
         string error = 1;
-        EncryptedResponse encrypted_response = 2;
-        mobilecoind_api.GetProcessedBlockResponse get_processed_block = 3;
-        mobilecoind_api.GetBlockResponse get_block = 4;
-        mobilecoind_api.GetBlockInfoResponse get_block_info = 5;
-        mobilecoind_api.GetLedgerInfoResponse get_ledger_info = 6;
-        mobilecoind_api.GetBlockIndexByTxPubKeyResponse get_block_index_by_tx_pub_key = 7;
+        UnencryptedResponse unencrypted_response = 2;
+        EncryptedResponse encrypted_response = 3;
     }
 }
 
@@ -53,23 +43,21 @@ message PollResponse {
     map<string, QueryRequest> query_requests = 1;
 }
 
-//
-// Requests that do not align 1:1 with the mobilecoind_api
-//
-
-// GetProcessedBlockRequest - similar to mobilecoind's, but (without the monitor_id parameter.
-// The mirror operates automatically on all known monitor ids.
-message GetProcessedBlockRequest {
-    // Block number to query.
-    uint64 block = 1;
+// A normal request.
+message UnsignedRequest {
+    string json_request = 1;
 }
 
 // A request thas has been signed by the client.
 message SignedRequest {
     // See private/request.rs for details on the format of this JSON request.
     string json_request = 1;
-
     bytes signature = 2;
+}
+
+// A normal response.
+message UnencryptedResponse {
+    string json_response = 1;
 }
 
 // A response that has been encrypted, to be handed back to the client.

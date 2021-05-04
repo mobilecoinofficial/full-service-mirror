@@ -1,16 +1,16 @@
-// Copyright (c) 2018-2020 MobileCoin Inc.
+// Copyright (c) 2018-2021 MobileCoin Inc.
 
 use mc_util_uri::{Uri, UriScheme};
 
-pub type MobilecoindMirrorUri = Uri<MobilecoindMirrorScheme>;
+pub type WalletServiceMirrorUri = Uri<WalletServiceMirrorScheme>;
 
-/// Mobilecoind Mirror Uri Scheme
+/// Wallet Service Mirror Uri Scheme
 #[derive(Debug, Hash, Ord, PartialOrd, Eq, PartialEq, Clone)]
-pub struct MobilecoindMirrorScheme {}
-impl UriScheme for MobilecoindMirrorScheme {
+pub struct WalletServiceMirrorScheme {}
+impl UriScheme for WalletServiceMirrorScheme {
     /// The part before the '://' of a URL.
-    const SCHEME_SECURE: &'static str = "mobilecoind-mirror";
-    const SCHEME_INSECURE: &'static str = "insecure-mobilecoind-mirror";
+    const SCHEME_SECURE: &'static str = "wallet-service-mirror";
+    const SCHEME_INSECURE: &'static str = "insecure-wallet-service-mirror";
 
     /// Default port numbers
     const DEFAULT_SECURE_PORT: u16 = 10443;
