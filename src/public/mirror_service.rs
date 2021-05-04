@@ -1,11 +1,11 @@
 use crate::query::QueryManager;
 use grpcio::{RpcContext, RpcStatus, Service, UnarySink};
 use mc_common::logger::{log, Logger};
+use mc_util_grpc::{rpc_logger, send_result};
 use mc_wallet_service_mirror::{
     wallet_service_mirror_api::{PollRequest, PollResponse},
     wallet_service_mirror_api_grpc::{create_wallet_service_mirror, WalletServiceMirror},
 };
-use mc_util_grpc::{rpc_logger, send_result};
 
 #[derive(Clone)]
 pub struct MirrorService {

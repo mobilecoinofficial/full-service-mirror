@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2020 MobileCoin Inc.
+// Copyright (c) 2018-2021 MobileCoin Inc.
 
 //! The public side of wallet-service-mirror.
 //! This program opens two listening ports:
@@ -12,15 +12,14 @@ mod mirror_service;
 mod query;
 mod utils;
 
-use std::io::Read;
 use grpcio::{EnvBuilder, ServerBuilder};
 use mc_common::logger::{create_app_logger, log, o, Logger};
-use mc_wallet_service_mirror::{
-    wallet_service_mirror_api::{QueryRequest, UnsignedRequest, SignedRequest},
-    uri::WalletServiceMirrorUri,
-};
 use mc_util_grpc::{BuildInfoService, ConnectionUriGrpcioServer, HealthService};
 use mc_util_uri::{ConnectionUri, Uri, UriScheme};
+use mc_wallet_service_mirror::{
+    uri::WalletServiceMirrorUri,
+    wallet_service_mirror_api::{QueryRequest, SignedRequest, UnsignedRequest},
+};
 use mirror_service::MirrorService;
 use query::QueryManager;
 use rocket::{
@@ -32,7 +31,7 @@ use rocket::{
 };
 use rocket_contrib::json::Json;
 use serde::Deserialize;
-use std::sync::Arc;
+use std::{io::Read, sync::Arc};
 use structopt::StructOpt;
 
 pub type ClientUri = Uri<ClientUriScheme>;
@@ -106,7 +105,6 @@ impl From<String> for BadRequest {
     }
 }
 
-
 #[post("/unsigned-request", format = "json", data = "<request_data>")]
 fn unsigned_request(
     state: rocket::State<State>,
@@ -116,19 +114,11 @@ fn unsigned_request(
     let res = request_data.open().read_to_string(&mut request);
     if res.is_err() {
         let msg = "Could not read request data for unsigned request.";
-        log::error!(
-            state.logger,
-            "{}",
-            msg,
-        );
+        log::error!(state.logger, "{}", msg,);
         return Err(msg.into());
     }
 
-    log::debug!(
-        state.logger,
-        "Enqueueing UnsignedRequest({})",
-        &request,
-    );
+    log::debug!(state.logger, "Enqueueing UnsignedRequest({})", &request,);
 
     let mut unsigned_request = UnsignedRequest::new();
     unsigned_request.set_json_request(request.clone());
@@ -167,13 +157,11 @@ fn unsigned_request(
     Ok(response.get_json_response().to_string())
 }
 
-
 #[derive(Deserialize)]
 struct JsonSignedRequest {
     request: String,
     signature: Vec<u8>,
 }
-
 
 #[post("/signed-request", format = "json", data = "<request>")]
 fn signed_request(
@@ -298,13 +286,7 @@ fn main() {
 
     log::info!(logger, "Starting client web server");
     rocket::custom(rocket_config)
-        .mount(
-            "/",
-            routes![
-                unsigned_request,
-                signed_request,
-            ],
-        )
+        .mount("/", routes![unsigned_request, signed_request,])
         .manage(State {
             query_manager,
             logger,

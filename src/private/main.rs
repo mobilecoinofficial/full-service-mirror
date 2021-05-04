@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2020 MobileCoin Inc.
+// Copyright (c) 2018-2021 MobileCoin Inc.
 
 //! The private side of wallet-service-mirror.
 //! This program forms outgoing connections to both a wallet service instance, as well as a public
@@ -24,7 +24,7 @@ use std::{
 };
 use structopt::StructOpt;
 
-const SUPPORTED_ENDPOINTS: &'static [&'static str] = &[
+const SUPPORTED_ENDPOINTS: &[&str] = &[
     "get_transaction_logs",
     "get_txo_object",
     "get_transaction_object",
@@ -146,7 +146,7 @@ fn main() {
                                 );
 
                                 let mut err_query_response = QueryResponse::new();
-                                err_query_response.set_error(err.to_string());
+                                err_query_response.set_error(err);
                                 err_query_response
                             })
                         } else {
@@ -163,7 +163,7 @@ fn main() {
                                 );
 
                                 let mut err_query_response = QueryResponse::new();
-                                err_query_response.set_error(err.to_string());
+                                err_query_response.set_error(err);
                                 err_query_response
                             })
                         }

@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2020 MobileCoin Inc.
+// Copyright (c) 2018-2021 MobileCoin Inc.
 
 //! Utility entity for managing queries submitted over our rocket endpoint and resolved by the GRPC
 //! polling mechanism.
