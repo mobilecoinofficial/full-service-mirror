@@ -17,6 +17,7 @@ mkdir -p /tmp/mobilecoin/wallet-db
     --peer mc://node2.test.mobilecoin.com/ \
     --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
     --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
+    --fog-ingest-enclave ./ingest-enclave.css \
     > /tmp/mobilecoin-full-service.log 2>&1 &
 
 echo "Daemon is starting up (5 seconds)"
