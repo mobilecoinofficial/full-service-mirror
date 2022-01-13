@@ -9,14 +9,14 @@ if [ -z "$PUBLIC_HOST" ]; then
     exit 1
 fi
 
-mkdir -p /tmp/mobilecoin/wallet-db
+mkdir -p ./full-service-dbs
 ./bin/full-service \
-    --wallet-db /tmp/mobilecoin/wallet-db/wallet.db \
-    --ledger-db /tmp/mobilecoin/ledger-db/ \
-    --peer mc://node1.test.mobilecoin.com/ \
-    --peer mc://node2.test.mobilecoin.com/ \
-    --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
-    --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
+    --wallet-db ./full-service-dbs/wallet.db \
+    --ledger-db ./full-service-dbs/ledger-db/ \
+    --peer mc://node1.prod.mobilecoinww.com/ \
+    --peer mc://node2.prod.mobilecoinww.com/ \
+    --tx-source-url https://ledger.mobilecoinww.com/node1.prod.mobilecoinww.com/ \
+    --tx-source-url https://ledger.mobilecoinww.com/node2.prod.mobilecoinww.com/ \
     --fog-ingest-enclave ./ingest-enclave.css \
     > /tmp/mobilecoin-full-service.log 2>&1 &
 
