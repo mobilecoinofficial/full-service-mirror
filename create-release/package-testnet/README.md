@@ -17,7 +17,7 @@ This returns:
 {"method":"get_block","result":{"block":{"id":"dba9b5bb61dc3941c6730a4c5e9b81f30f9def32abd4251d0715100072a7425e","version":"0","parent_id":"0000000000000000000000000000000000000000000000000000000000000000","index":"0","cumulative_txo_count":"16","root_element":{"range":{"from":"0","to":"0"},"hash":"0000000000000000000000000000000000000000000000000000000000000000"},"contents_hash":"882cea8bf5e082294ae1707ad2841c6f4846ece978d077f15bc090ac97885e81"},"block_contents":{"key_images":[],"outputs":[{"amount":{"commitment":"3a72e2231c1462354dfe6d4c289d05c67a528dfcdba52d8d87c07914c507dc5f","masked_value":"28067792405079518"},"target_key":"8c43d0e80adcf7c8a59f6350d010f7b257f2d6454efa7ca693eb92180a06ee6c","public_key":"50c5916be94c0dcba5054fe2852422ec7c5e208cb31355b8e74e8c4ed007a60b","e_fog_hint":"05e32fee11b4612c9fd54f97e9662c8e576ab91d062c62295974cdd940d0a257eb8ce687e9bbbf8e6dccb0ec16bf15ad6902f9c249d2fe1ed198918ec1c614a48b299c657aa32b9e5c3580f24c07e354b31e0100"},{"amou...
 ```
 
-For other requests please see https://github.com/mobilecoinofficial/full-service/blob/main/API.md
+For other requests please see https://mobilecoin.gitbook.io/full-service-api/
 
 If you want to have a TLS connection between the mirror sides, use `wallet-service-mirror-public-tls.sh` and `wallet-service-mirror-private-tls.sh`. Note that they use a self-signed test certificate stored inside `mirror.crt` / `mirror.key` that was generated with `openssl req -x509 -sha256 -nodes -newkey rsa:2048 -days 365 -keyout mirror.key -out mirror.crt`.
 
