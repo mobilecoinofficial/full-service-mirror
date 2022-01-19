@@ -37,7 +37,7 @@ Once started, the private side should no longer show errors and the mirror shoul
 Query block details:
 
 ```
-curl -s localhost:9091/unsigned-request \
+curl -s "localhost:9091/unsigned-request" \
   -d '{
         "method": "get_block",
         "params": {
