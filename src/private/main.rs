@@ -25,11 +25,27 @@ use std::{
 use structopt::StructOpt;
 
 const SUPPORTED_ENDPOINTS: &[&str] = &[
-    "get_transaction_logs",
-    "get_txo_object",
-    "get_transaction_object",
+    "check_receiver_receive_status",
+    "create_payment_request",
+    "get_account",
+    "get_account_status",
+    "get_address_for_account",
+    "get_all_accounts",
+    "get_all_addresses_for_account",
+    "get_all_transaction_logs_for_account",
+    "get_all_transaction_logs_for_block",
+    "get_all_transaction_logs_ordered_by_block",
+    "get_balance_for_account",
+    "get_balance_for_address",
     "get_block",
+    "get_confirmations",
     "get_network_status",
+    "get_transaction_log",
+    "get_transaction_logs_for_account",
+    "get_transaction_object",
+    "get_txo_object",
+    "validate_confirmation",
+    "verify_address",
 ];
 
 /// A wrapper to ease monitor id parsing from a hex string when using `StructOpt`.

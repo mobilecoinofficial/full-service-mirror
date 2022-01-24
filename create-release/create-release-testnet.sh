@@ -27,13 +27,16 @@ INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.test.mobilecoin.com/
 
 # Build requires dependencies
 cargo build -p mc-full-service --release --manifest-path $PROJECT_ROOT/full-service/Cargo.toml
+cargo build -p mc-validator-service --release --manifest-path $PROJECT_ROOT/full-service/Cargo.toml
 cargo build --manifest-path $PROJECT_ROOT/Cargo.toml --release
 
 # Create release dir
 cp -R $SCRIPT_DIR/package-testnet/* $RELEASE_DIR
 cp $PROJECT_ROOT/full-service/target/release/full-service $RELEASE_DIR/bin/
+cp $PROJECT_ROOT/full-service/target/release/mc-validator-service $RELEASE_DIR/bin/
 cp $PROJECT_ROOT/target/release/wallet-service-mirror-private $RELEASE_DIR/bin/
 cp $PROJECT_ROOT/target/release/wallet-service-mirror-public $RELEASE_DIR/bin/
-tar -czvf release/$RELEASE_NAME.tar.gz $RELEASE_DIR/
+
+(cd release && tar -czvf $RELEASE_NAME.tar.gz $RELEASE_NAME/)
 
 echo Created $RELEASE_NAME.tar.gz

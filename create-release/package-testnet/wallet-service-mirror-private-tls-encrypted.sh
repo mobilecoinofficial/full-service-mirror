@@ -14,14 +14,21 @@ if [ ! -f "mirror-private.pem" ]; then
     exit 1
 fi
 
+mkdir -p ./validator-dbs
+./bin/mc-validator-service \
+    --ledger-db ./validator-vbs/ledger-db/ \
+    --peer mc://node1.test.mobilecoin.com/ \tmp
+    --peer mc://node2.test.mobilecoin.com/ \
+    --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
+    --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
+    --listen-uri insecure-validator://localhost:5554/tmp \
+    > /tmp/mobilecoin-full-service.log 2>&1 &
+
 mkdir -p ./full-service-dbs
 ./bin/full-service \
     --wallet-db ./full-service-dbs/wallet.db \
     --ledger-db ./full-service-dbs/ledger-db/ \
-    --peer mc://node1.test.mobilecoin.com/ \
-    --peer mc://node2.test.mobilecoin.com/ \
-    --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
-    --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
+    --validator insecure-validator://localhost:5554/ \
     --fog-ingest-enclave ./ingest-enclave.css \
     > /tmp/mobilecoin-full-service.log 2>&1 &
 
