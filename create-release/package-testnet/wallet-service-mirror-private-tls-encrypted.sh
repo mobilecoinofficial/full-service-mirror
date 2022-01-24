@@ -29,7 +29,7 @@ mkdir -p ./full-service-dbs
     --wallet-db ./full-service-dbs/wallet.db \
     --ledger-db ./full-service-dbs/ledger-db/ \
     --validator insecure-validator://localhost:5554/ \
-    --fog-ingest-enclave ./ingest-enclave.css \
+    --fog-ingest-enclave-css ./ingest-enclave.css \
     > /tmp/mobilecoin-full-service.log 2>&1 &
 
 echo "Daemon is starting up (5 seconds)"
