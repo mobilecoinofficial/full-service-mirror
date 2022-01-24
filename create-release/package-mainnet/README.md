@@ -34,7 +34,7 @@ mkdir -p ./fs-dbs/wallet-db/
 ./bin/full-service \
    --wallet-db ./fs-dbs/wallet-db/wallet.db \
    --ledger-db ./fs-dbs/ledger-db/ \
-   --validator insecure-validator://localhost:5554/
+   --validator insecure-validator://localhost:5554/ \
    --fog-ingest-enclave-css $(pwd)/ingest-enclave.css
 ```
 
@@ -89,7 +89,7 @@ mkdir -p ./fs-dbs/wallet-db/
 ./bin/full-service \
    --wallet-db ./fs-dbs/wallet-db/wallet.db \
    --ledger-db ./fs-dbs/ledger-db/ \
-   --validator "validator://localhost:5554/?ca-bundle=server.crt&tls-hostname=localhost"
+   --validator "validator://localhost:5554/?ca-bundle=server.crt&tls-hostname=localhost" \
    --fog-ingest-enclave-css $(pwd)/ingest-enclave.css
 ```
 The `--validator` argument has changed to point at the certificate file, and also specify the Common Name that is in the certficiate. Note that if the CN matches the hostname (as in the above example) then this is redundant.## TLS between full-service and LVN
