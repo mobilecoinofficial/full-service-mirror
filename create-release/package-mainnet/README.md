@@ -15,7 +15,7 @@ Using the `--validator` command line argument for `full-service`, this allows ru
 ```sh
 mkdir -p ./lvn-dbs
 ./bin/mc-validator-service \
-   --ledger-db /lvn-dbs/ledger-db/ \
+   --ledger-db ./lvn-dbs/ledger-db/ \
    --peer mc://node1.prod.mobilecoinww.com/ \
    --peer mc://node2.prod.mobilecoinww.com/ \
    --tx-source-url https://ledger.mobilecoinww.com/node1.prod.mobilecoinww.com/ \
