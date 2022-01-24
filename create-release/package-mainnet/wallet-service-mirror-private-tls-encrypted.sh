@@ -22,7 +22,7 @@ mkdir -p ./full-service-dbs
     --peer mc://node2.prod.mobilecoinww.com/ \
     --tx-source-url https://ledger.mobilecoinww.com/node1.prod.mobilecoinww.com/ \
     --tx-source-url https://ledger.mobilecoinww.com/node2.prod.mobilecoinww.com/ \
-    --fog-ingest-enclave ./ingest-enclave.css \
+    --fog-ingest-enclave-css ./ingest-enclave.css \
     > /tmp/mobilecoin-full-service.log 2>&1 &
 
 echo "Daemon is starting up (5 seconds)"
