@@ -31,7 +31,7 @@ cargo build -p mc-validator-service --release --manifest-path $PROJECT_ROOT/full
 cargo build --manifest-path $PROJECT_ROOT/Cargo.toml --release
 
 # Create release dir
-cp -R $SCRIPT_DIR/package-testnet/* $RELEASE_DIR
+cp -R $SCRIPT_DIR/package-mainnet/* $RELEASE_DIR
 cp $PROJECT_ROOT/full-service/target/release/full-service $RELEASE_DIR/bin/
 cp $PROJECT_ROOT/full-service/target/release/mc-validator-service $RELEASE_DIR/bin/
 cp $PROJECT_ROOT/target/release/wallet-service-mirror-private $RELEASE_DIR/bin/
