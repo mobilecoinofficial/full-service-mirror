@@ -2,8 +2,7 @@
 
 ## Requirements
 
-MobileCoin's full-service, full-service mirrors, and ledger-validator-node are developed using the environment specified in [this Dockerfile](https://github.com/mobilecoinfoundat\
-ion/mobilecoin/blob/bdd5ded7aff9b8a86bd10c568a1f2bcf1ee20d27/docker/Dockerfile).
+MobileCoin's full-service, full-service mirrors, and ledger-validator-node are developed using the environment specified in [this Dockerfile](https://github.com/mobilecoinfoundation/mobilecoin/blob/bdd5ded7aff9b8a86bd10c568a1f2bcf1ee20d27/docker/Dockerfile).
 
 ## Ledger Validator Node & Full Service
 
@@ -86,10 +85,10 @@ but can connect to a host running the LVN.
     mkdir -p ./lvn-dbs
     ./bin/mc-validator-service \
        --ledger-db ./lvn-dbs/ledger-db/ \
-       --peer mc://node1.test.mobilecoin.com/ \
-       --peer mc://node2.test.mobilecoin.com/ \
-       --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
-       --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
+       --peer mc://node1.prod.mobilecoinww.com/ \
+       --peer mc://node2.prod.mobilecoinww.com/ \
+       --tx-source-url https://ledger.mobilecoinww.com/node1.prod.mobilecoinww.com \
+       --tx-source-url https://ledger.mobilecoinww.com/node2.prod.mobilecoinww.com \
        --listen-uri "validator://localhost:5554/?tls-chain=server.crt&tls-key=server.key"
     ```
 
