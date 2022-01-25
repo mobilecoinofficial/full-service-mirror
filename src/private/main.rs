@@ -107,8 +107,8 @@ fn main() {
     let mirror_api_client = {
         let env = Arc::new(grpcio::EnvBuilder::new().build());
         let ch = ChannelBuilder::new(env)
-            .max_receive_message_len(std::i32::MAX)
-            .max_send_message_len(std::i32::MAX)
+            .max_receive_message_len(-1)
+            .max_send_message_len(-1)
             .max_reconnect_backoff(Duration::from_millis(2000))
             .initial_reconnect_backoff(Duration::from_millis(1000))
             .connect_to_uri(&config.mirror_public_uri, &logger);
