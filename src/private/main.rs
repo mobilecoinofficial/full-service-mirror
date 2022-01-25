@@ -32,9 +32,7 @@ const SUPPORTED_ENDPOINTS: &[&str] = &[
     "get_address_for_account",
     "get_all_accounts",
     "get_all_addresses_for_account",
-    "get_all_transaction_logs_for_account",
     "get_all_transaction_logs_for_block",
-    "get_all_transaction_logs_ordered_by_block",
     "get_balance_for_account",
     "get_balance_for_address",
     "get_block",
@@ -42,8 +40,6 @@ const SUPPORTED_ENDPOINTS: &[&str] = &[
     "get_network_status",
     "get_transaction_log",
     "get_transaction_logs_for_account",
-    "get_transaction_object",
-    "get_txo_object",
     "validate_confirmation",
     "verify_address",
 ];
