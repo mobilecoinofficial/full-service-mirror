@@ -1,0 +1,48 @@
+version: "3.8"
+
+services:
+
+  full_service:
+    build:
+      context: ./full-service
+      dockerfile: ./Dockerfile
+    volumes:
+      - full-service:/data
+    tty: true
+    command:
+      - --peer=mc://node1.test.mobilecoin.com/
+      - --peer=mc://node2.test.mobilecoin.com/
+      - --tx-source-url=https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/
+      - --tx-source-url=https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/
+    expose:
+      - 9090
+    restart: always
+
+  wallet_service_mirror_private:
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    command:
+      - /usr/local/bin/wallet-service-mirror-private 
+      - --mirror-public-uri=insecure-wallet-service-mirror://wallet_service_mirror_public/ 
+      - --wallet-service-uri=http://full_service:9090/wallet 
+    depends_on:
+      - full_service
+    restart: always
+
+  wallet_service_mirror_public:
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    command:
+      - /usr/local/bin/wallet-service-mirror-public 
+      - --client-listen-uri=http://0.0.0.0:9091/
+      - --mirror-listen-uri=insecure-wallet-service-mirror://0.0.0.0/
+    ports:
+      - "9091:9091"
+    depends_on:
+      - full_service
+    restart: always
+
+volumes:
+  full-service:
