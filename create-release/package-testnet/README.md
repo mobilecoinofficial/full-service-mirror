@@ -117,16 +117,25 @@ Note that the `Common Name` needs to match the hostname which you would be using
 
 ### Public Mirror
 
+If you would like to run this without end to end encryption use the following command
+
+```sh
+./bin/wallet-service-mirror-public --client-listen-uri http://0.0.0.0:9091/ --mirror-listen-uri "insecure-wallet-service-mirror://0.0.0.0/"
+```
+
+Otherwise, use this one
+
 ```sh
 ./bin/wallet-service-mirror-public --client-listen-uri http://0.0.0.0:9091/ --mirror-listen-uri "wallet-service-mirror://0.0.0.0/?tls-chain=mirror.crt&tls-key=mirror.key" --allow-self-signed-tls
 ```
+
 
 ### Private Mirror
 
 If you would like to run this without end to end encryption use the following command
 
 ```sh
-./bin/wallet-service-mirror-private --mirror-public-uri "wallet-service-mirror://localhost/?ca-bundle=mirror.crt&tls-hostname=localhost" --wallet-service-uri http://localhost:9090/wallet
+./bin/wallet-service-mirror-private --mirror-public-uri "insecure-wallet-service-mirror://localhost/" --wallet-service-uri http://localhost:9090/wallet
 ```
 
 Otherwise, use this one
