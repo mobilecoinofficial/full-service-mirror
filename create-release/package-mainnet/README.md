@@ -162,7 +162,7 @@ $ curl -X POST -H 'Content-Type: application/json' -d '{"method": "get_block", "
 "50c5916be94c0dcba5054fe2852422ec7c5e208cb31355b8e74e8c4ed007a60b","e_fog_hint":"05e32fee11b4612c9fd54f97e9662c8e576ab91d062c62295974cdd940d0a257eb8ce687e9bbbf8e6dccb0ec16bf15ad6902f9c249d2fe1ed198918ec1c614a48b299c657aa32b9e5c3580f24c07e354b31e0100"},{"amou...
 ```
 
-For the full API documentation, please see the [Full Service API](https://mobilecoin.gitbook.io/full-srevice-api).
+For the full API documentation, please see the [Full Service API](https://mobilecoin.gitbook.io/full-service-api/).
 
 To test with encryption, please use the [example client](https://github.com/mobilecoinofficial/full-service-mirror/blob/master/example-client.js).
 
