@@ -148,3 +148,9 @@ Returns:
 ```
 
 For the full API documentation, please see the [Full Service API](https://mobilecoin.gitbook.io/full-service-api/).
+
+To test with encryption, please use the [example client](https://github.com/mobilecoinofficial/full-service-mirror/blob/master/example-client.js).
+
+```
+node example-client.js 127.0.0.1 9091 mirror-client.pem '{"method": "get_block", "params": {"block_index": "0"}, "jsonrpc": "2.0", "id": 1}'
+```
