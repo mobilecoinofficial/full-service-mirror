@@ -1,8 +1,11 @@
 # Full Service Mirror, Full Service, & Ledger Validator Node
 
-The first step is to launch Full Service and the Ledger Validator Node
+## Requirements
 
+MobileCoin's full-service, full-service mirrors, and ledger-validator-node are developed using the environment specified in [this Dockerfile](https://github.com/mobilecoinfoundation/mobilecoin/blob/bdd5ded7aff9b8a86bd10c568a1f2bcf1ee20d27/docker/Dockerfile).
 ## Ledger Validator Node & Full Service
+
+The first step is to launch Full Service and the Ledger Validator Node
 
 A service that is capable of syncing the ledger from the consensus network, relaying transactions to it and proxying fog report resolution.
 
