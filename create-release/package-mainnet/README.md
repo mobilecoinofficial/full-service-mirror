@@ -137,7 +137,7 @@ If you would like to run this without end to end encryption use the following co
 ./bin/wallet-service-mirror-public --client-listen-uri http://0.0.0.0:9091/ --mirror-listen-uri "insecure-wallet-service-mirror://0.0.0.0/"
 ```
 
-Otherwise, use this one
+To run with encryption, use the following command
 
 ```sh
 ./bin/wallet-service-mirror-public --client-listen-uri http://0.0.0.0:9091/ --mirror-listen-uri "wallet-service-mirror://0.0.0.0/?tls-chain=mirror.crt&tls-key=mirror.key" --allow-self-signed-tls
