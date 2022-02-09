@@ -12,7 +12,7 @@ mod mirror_service;
 mod query;
 mod utils;
 
-use grpcio::{EnvBuilder, ServerBuilder};
+use grpcio::{ChannelBuilder, EnvBuilder, ServerBuilder};
 use mc_common::logger::{create_app_logger, log, o, Logger};
 use mc_util_grpc::{BuildInfoService, ConnectionUriGrpcioServer, HealthService};
 use mc_util_uri::{ConnectionUri, Uri, UriScheme};
@@ -246,10 +246,15 @@ fn main() {
             .build(),
     );
 
+    let ch_builder = ChannelBuilder::new(env.clone())
+        .max_receive_message_len(-1)
+        .max_send_message_len(-1);
+
     let server_builder = ServerBuilder::new(env)
         .register_service(build_info_service)
         .register_service(health_service)
         .register_service(mirror_service)
+        .channel_args(ch_builder.build_args())
         .bind_using_uri(&config.mirror_listen_uri, logger.clone());
 
     let mut server = server_builder.build().unwrap();

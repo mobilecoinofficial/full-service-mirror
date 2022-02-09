@@ -18,6 +18,7 @@ use mc_wallet_service_mirror::{
     },
     wallet_service_mirror_api_grpc::WalletServiceMirrorClient,
 };
+use protobuf::Message;
 use rsa::RSAPublicKey;
 use std::{
     collections::HashMap, convert::TryFrom, str::FromStr, sync::Arc, thread::sleep, time::Duration,
@@ -129,6 +130,7 @@ fn main() {
             "Calling poll with {} queued responses",
             pending_responses.len()
         );
+        println!("SIZE IS {}", request.compute_size());
         match mirror_api_client.poll(&request) {
             Ok(response) => {
                 log::debug!(
