@@ -1,8 +1,11 @@
 # Full Service Mirror, Full Service, & Ledger Validator Node
 
-The first step is to launch Full Service and the Ledger Validator Node
+## Requirements
 
+MobileCoin's full-service, full-service mirrors, and ledger-validator-node are developed using the environment specified in [this Dockerfile](https://github.com/mobilecoinfoundation/mobilecoin/blob/bdd5ded7aff9b8a86bd10c568a1f2bcf1ee20d27/docker/Dockerfile).
 ## Ledger Validator Node & Full Service
+
+The first step is to launch Full Service and the Ledger Validator Node
 
 A service that is capable of syncing the ledger from the consensus network, relaying transactions to it and proxying fog report resolution.
 
@@ -114,19 +117,28 @@ Note that the `Common Name` needs to match the hostname which you would be using
 
 ### Public Mirror
 
+If you would like to run this without end to end encryption use the following command
+
+```sh
+./bin/wallet-service-mirror-public --client-listen-uri http://0.0.0.0:9091/ --mirror-listen-uri "insecure-wallet-service-mirror://0.0.0.0/"
+```
+
+Otherwise, use this one
+
 ```sh
 ./bin/wallet-service-mirror-public --client-listen-uri http://0.0.0.0:9091/ --mirror-listen-uri "wallet-service-mirror://0.0.0.0/?tls-chain=mirror.crt&tls-key=mirror.key" --allow-self-signed-tls
 ```
+
 
 ### Private Mirror
 
 If you would like to run this without end to end encryption use the following command
 
 ```sh
-./bin/wallet-service-mirror-private --mirror-public-uri "wallet-service-mirror://localhost/?ca-bundle=mirror.crt&tls-hostname=localhost" --wallet-service-uri http://localhost:9090/wallet
+./bin/wallet-service-mirror-private --mirror-public-uri "insecure-wallet-service-mirror://localhost/" --wallet-service-uri http://localhost:9090/wallet
 ```
 
-Otherwise, use this one
+To run with encryption, use the following command
 
 ```sh
 ./bin/wallet-service-mirror-private --mirror-public-uri "wallet-service-mirror://localhost/?ca-bundle=mirror.crt&tls-hostname=localhost" --wallet-service-uri http://localhost:9090/wallet --mirror-key mirror-private.pem
@@ -147,4 +159,10 @@ Returns:
 {"method":"get_block","result":{"block":{"id":"dba9b5bb61dc3941c6730a4c5e9b81f30f9def32abd4251d0715100072a7425e","version":"0","parent_id":"0000000000000000000000000000000000000000000000000000000000000000","index":"0","cumulative_txo_count":"16","root_element":{"range":{"from":"0","to":"0"},"hash":"0000000000000000000000000000000000000000000000000000000000000000"},"contents_hash":"882cea8bf5e082294ae1707ad2841c6f4846ece978d077f15bc090ac97885e81"},"block_contents":{"key_images":[],"outputs":[{"amount":{"commitment":"3a72e2231c1462354dfe6d4c289d05c67a528dfcdba52d8d87c07914c507dc5f","masked_value":"28067792405079518"},"target_key":"8c43d0e80adcf7c8a59f6350d010f7b257f2d6454efa7ca693eb92180a06ee6c","public_key":"50c5916be94c0dcba5054fe2852422ec7c5e208cb31355b8e74e8c4ed007a60b","e_fog_hint":"05e32fee11b4612c9fd54f97e9662c8e576ab91d062c62295974cdd940d0a257eb8ce687e9bbbf8e6dccb0ec16bf15ad6902f9c249d2fe1ed198918ec1c614a48b299c657aa32b9e5c3580f24c07e354b31e0100"},{"amou...
 ```
 
-For other requests please see https://github.com/mobilecoinofficial/full-service/blob/main/API.md
+For the full API documentation, please see the [Full Service API](https://mobilecoin.gitbook.io/full-service-api/).
+
+To test with encryption, please use the [example client](https://github.com/mobilecoinofficial/full-service-mirror/blob/master/example-client.js).
+
+```
+node example-client.js 127.0.0.1 9091 mirror-client.pem '{"method": "get_block", "params": {"block_index": "0"}, "jsonrpc": "2.0", "id": 1}'
+```
