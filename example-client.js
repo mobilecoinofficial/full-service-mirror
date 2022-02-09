@@ -51,6 +51,7 @@ let post_data = JSON.stringify({
 let req = http.request({
     host: public_mirror_host,
     port: public_mirror_port,
+    timeout: 120000,
     path: '/signed-request',
 	method: 'POST',
 	headers: {

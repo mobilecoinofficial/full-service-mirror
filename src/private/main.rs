@@ -47,6 +47,9 @@ const SUPPORTED_ENDPOINTS: &[&str] = &[
     "verify_address",
 ];
 
+/// How long do we wait for full-service to reply?
+const FULL_SERVICE_TIMEOUT: Duration = Duration::from_secs(120);
+
 /// A wrapper to ease monitor id parsing from a hex string when using `StructOpt`.
 #[derive(Clone, Debug)]
 pub struct MonitorId(pub Vec<u8>);
@@ -237,7 +240,10 @@ fn process_unencrypted_request(
     );
 
     // Pass request along to full-service.
-    let client = reqwest::blocking::Client::new();
+    let client = reqwest::blocking::Client::builder()
+        .timeout(FULL_SERVICE_TIMEOUT)
+        .build()
+        .map_err(|e| e.to_string())?;
     let res = client
         .post(wallet_service_uri)
         .header(reqwest::header::CONTENT_TYPE, "application/json")
@@ -298,7 +304,10 @@ fn process_encrypted_request(
     }
 
     // Pass request along to full-service.
-    let client = reqwest::blocking::Client::new();
+    let client = reqwest::blocking::Client::builder()
+        .timeout(FULL_SERVICE_TIMEOUT)
+        .build()
+        .map_err(|e| e.to_string())?;
     let res = client
         .post(wallet_service_uri)
         .header(reqwest::header::CONTENT_TYPE, "application/json")
