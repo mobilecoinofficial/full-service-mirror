@@ -133,7 +133,6 @@ fn main() {
             "Calling poll with {} queued responses",
             pending_responses.len()
         );
-        println!("SIZE IS {}", request.compute_size());
         match mirror_api_client.poll(&request) {
             Ok(response) => {
                 log::debug!(
