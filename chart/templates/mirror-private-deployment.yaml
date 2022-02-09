@@ -32,11 +32,11 @@ spec:
         imagePullPolicy: {{ .Values.mirrorPrivate.imagePullPolicy }}
         args:
           - /usr/local/bin/wallet-service-mirror-private
-          - --wallet-service-uri=http://full-service-mirror-full-service.{{ .Release.Namespace }}.svc.cluster.local:9090/wallet
+          - --wallet-service-uri=http://full-service-mirror-full-service:9090/wallet
           {{- if eq .Values.mirrorServiceTLS true }}
-          - --mirror-public-uri=wallet-service-mirror://full-service-mirror-public.{{ .Release.Namespace }}.svc.cluster.local/?ca-bundle=/certs/ca.crt
+          - --mirror-public-uri=wallet-service-mirror://full-service-mirror-public/?ca-bundle=/certs/ca.crt
           {{- else }}
-          - --mirror-public-uri=insecure-wallet-service-mirror://full-service-mirror-public.{{ .Release.Namespace }}.svc.cluster.local/
+          - --mirror-public-uri=insecure-wallet-service-mirror://full-service-mirror-public/
           {{ end }}
         securityContext:
           capabilities:

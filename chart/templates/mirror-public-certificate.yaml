@@ -5,6 +5,7 @@ metadata:
   name: {{ include "chart.fullname" . }}-public-cert
 spec:
   dnsNames:
+    - full-service-mirror-public
     - full-service-mirror-public.{{ .Release.Namespace }}.svc.cluster.local
   secretName: {{ include "chart.fullname" . }}-public-cert-tls
   issuerRef:
