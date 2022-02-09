@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "chart.fullname" . }}-private
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+    app: mirror-service-private
+spec:
+  replicas: {{ $.Values.mirrorPrivate.replicaCount }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "chart.selectorLabels" . | nindent 6 }}
+      app: mirror-service-private
+  template:
+    metadata:
+      annotations:
+        {{- toYaml .Values.mirrorPrivate.podAnnotations | nindent 8 }}
+      labels:
+        {{- include "chart.selectorLabels" . | nindent 8 }}
+        app: mirror-service-private
+    spec:
+      imagePullSecrets:
+        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+      - name: mirror-service-private
+        image: "{{ .Values.mirrorPrivate.image.repository }}:{{ .Values.mirrorPrivate.image.tag }}"
+        imagePullPolicy: {{ .Values.mirrorPrivate.imagePullPolicy }}
+        args:
+          - /usr/local/bin/wallet-service-mirror-private
+          - --wallet-service-uri=http://full-service-mirror-full-service:9090/wallet
+          {{- if eq .Values.mirrorServiceTLS true }}
+          - --mirror-public-uri=wallet-service-mirror://full-service-mirror-public/?ca-bundle=/certs/ca.crt
+          {{- else }}
+          - --mirror-public-uri=insecure-wallet-service-mirror://full-service-mirror-public/
+          {{ end }}
+        securityContext:
+          capabilities:
+            drop:
+            - all
+          readOnlyRootFilesystem: true
+        {{- if eq .Values.mirrorServiceTLS true }}
+        volumeMounts:
+          - mountPath: /certs
+            name: tls-cert
+            readOnly: true
+        {{- end }}
+        resources:
+          {{- toYaml .Values.mirrorPrivate.resources | nindent 12 }}
+      {{- if eq .Values.mirrorServiceTLS true }}
+      volumes:
+        - name: tls-cert
+          secret: 
+            secretName: {{ include "chart.fullname" . }}-public-cert-tls
+      {{- end }}
+      nodeSelector:
+        {{- toYaml .Values.mirrorPrivate.nodeSelector | nindent 8 }}
+      affinity:
+        {{- toYaml .Values.mirrorPrivate.affinity | nindent 8 }}
+      tolerations:
+        {{- toYaml .Values.mirrorPrivate.tolerations | nindent 8 }}
