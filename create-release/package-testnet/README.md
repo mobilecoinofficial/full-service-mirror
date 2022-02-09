@@ -138,7 +138,7 @@ If you would like to run this without end to end encryption use the following co
 ./bin/wallet-service-mirror-private --mirror-public-uri "insecure-wallet-service-mirror://localhost/" --wallet-service-uri http://localhost:9090/wallet
 ```
 
-Otherwise, use this one
+To run with encryption, use the following command
 
 ```sh
 ./bin/wallet-service-mirror-private --mirror-public-uri "wallet-service-mirror://localhost/?ca-bundle=mirror.crt&tls-hostname=localhost" --wallet-service-uri http://localhost:9090/wallet --mirror-key mirror-private.pem
