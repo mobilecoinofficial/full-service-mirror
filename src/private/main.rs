@@ -18,6 +18,7 @@ use mc_wallet_service_mirror::{
     },
     wallet_service_mirror_api_grpc::WalletServiceMirrorClient,
 };
+use protobuf::Message;
 use rsa::RSAPublicKey;
 use std::{
     collections::HashMap, convert::TryFrom, str::FromStr, sync::Arc, thread::sleep, time::Duration,
@@ -30,9 +31,8 @@ const SUPPORTED_ENDPOINTS: &[&str] = &[
     "get_account",
     "get_account_status",
     "get_address_for_account",
+    "get_addresses_for_account",
     "get_all_accounts",
-    "get_all_addresses_for_account",
-    "get_all_transaction_logs_for_account",
     "get_all_transaction_logs_for_block",
     "get_balance_for_account",
     "get_balance_for_address",
@@ -45,6 +45,9 @@ const SUPPORTED_ENDPOINTS: &[&str] = &[
     "validate_confirmation",
     "verify_address",
 ];
+
+/// How long do we wait for full-service to reply?
+const FULL_SERVICE_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// A wrapper to ease monitor id parsing from a hex string when using `StructOpt`.
 #[derive(Clone, Debug)]
@@ -235,7 +238,10 @@ fn process_unencrypted_request(
     );
 
     // Pass request along to full-service.
-    let client = reqwest::blocking::Client::new();
+    let client = reqwest::blocking::Client::builder()
+        .timeout(FULL_SERVICE_TIMEOUT)
+        .build()
+        .map_err(|e| e.to_string())?;
     let res = client
         .post(wallet_service_uri)
         .header(reqwest::header::CONTENT_TYPE, "application/json")
@@ -296,7 +302,10 @@ fn process_encrypted_request(
     }
 
     // Pass request along to full-service.
-    let client = reqwest::blocking::Client::new();
+    let client = reqwest::blocking::Client::builder()
+        .timeout(FULL_SERVICE_TIMEOUT)
+        .build()
+        .map_err(|e| e.to_string())?;
     let res = client
         .post(wallet_service_uri)
         .header(reqwest::header::CONTENT_TYPE, "application/json")

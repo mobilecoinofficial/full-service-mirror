@@ -16,7 +16,7 @@ use std::{
 const QUERY_ID_LEN: usize = 8;
 
 /// The maximum amount of time to wait for a query to complete.
-const QUERY_MAX_DURATION: Duration = Duration::from_secs(30);
+const QUERY_MAX_DURATION: Duration = Duration::from_secs(120);
 
 /// The state held by each individual query.
 struct QueryInner {
