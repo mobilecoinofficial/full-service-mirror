@@ -10,7 +10,7 @@ if [ -z "$PUBLIC_HOST" ]; then
 fi
 
 if [ ! -f "mirror-private.pem" ]; then
-    echo "mirror-private.pem does not exist. Did you run generate-keys.js?"
+    echo "mirror-private.pem does not exist. Did you run generate-rsa-keypair?"
     exit 1
 fi
 

@@ -36,6 +36,7 @@ cp $PROJECT_ROOT/full-service/target/release/full-service $RELEASE_DIR/bin/
 cp $PROJECT_ROOT/full-service/target/release/mc-validator-service $RELEASE_DIR/bin/
 cp $PROJECT_ROOT/target/release/wallet-service-mirror-private $RELEASE_DIR/bin/
 cp $PROJECT_ROOT/target/release/wallet-service-mirror-public $RELEASE_DIR/bin/
+cp $PROJECT_ROOT/target/release/generate-rsa-keypair $RELEASE_DIR/bin/
 
 (cd release && tar -czvf $RELEASE_NAME.tar.gz $RELEASE_NAME/)
 

@@ -1,26 +1,30 @@
-// Copyright (c) 2018-2021 MobileCoin Inc.
+// Copyright (c) 2018-2022 MobileCoin Inc.
 
 //! Cryptographic primitives.
 
-use digest::Digest;
-use generic_array::typenum::Unsigned;
-use rsa::{PaddingScheme, PublicKey, PublicKeyParts, RSAPublicKey};
-use sha2::Sha256;
+use boring::{
+    pkey::Private,
+    rsa::{Padding, Rsa},
+};
 
-/// Encrypt a payload of arbitrary length.
-pub fn encrypt(key: &RSAPublicKey, payload: &[u8]) -> Result<Vec<u8>, String> {
-    // Each encrypted chunk must be no longer than the length of the public modulus minus (2 + 2*hash.size()).
+const PKCS1_PADDING_LEN: usize = 11;
+
+/// Encrypt a payload of arbitrary length using a private key.
+pub fn encrypt(key: &Rsa<Private>, payload: &[u8]) -> Result<Vec<u8>, String> {
+    // Each encrypted chunk must be no longer than the length of the public modulus minus 11 (PKCS1 padding size).
     // (Taken from `rsa::oaep::encrypt`).
-    let key_size = key.size();
-    let hash_size = <Sha256 as Digest>::OutputSize::to_usize();
-    let max_chunk_size = key_size - (2 * hash_size + 2);
+    let key_size = key.size() as usize;
+    let max_chunk_size = key_size - PKCS1_PADDING_LEN;
 
-    let mut rng = rand::thread_rng();
     let chunks: Vec<Vec<u8>> = payload
         .chunks(max_chunk_size)
         .map(|chunk| {
-            key.encrypt(&mut rng, PaddingScheme::new_oaep::<Sha256>(), chunk)
-                .map_err(|err| format!("encrypt failed: {:?}", err))
+            let mut output = vec![0u8; key_size];
+
+            key.private_encrypt(&chunk[..], &mut output, Padding::PKCS1)
+                .map_err(|e| format!("encrypt failed: {:?}", e))?;
+
+            Ok(output)
         })
         .collect::<Result<Vec<_>, String>>()?;
 
@@ -30,13 +34,230 @@ pub fn encrypt(key: &RSAPublicKey, payload: &[u8]) -> Result<Vec<u8>, String> {
         .collect())
 }
 
-/// Verify a signature.
-pub fn verify_sig(key: &RSAPublicKey, payload: &[u8], signature: &[u8]) -> Result<(), String> {
-    let digest = Sha256::digest(payload).to_vec();
-    key.verify(
-        PaddingScheme::new_pkcs1v15_sign(Some(rsa::Hash::SHA2_256)),
-        &digest,
-        &signature,
+/// Decrypt a payload of arbitrary length using a private key.
+pub fn decrypt(key: &Rsa<Private>, payload: &[u8]) -> Result<Vec<u8>, String> {
+    let key_size = key.size() as usize;
+
+    let chunks: Vec<Vec<u8>> = payload
+        .chunks(key_size)
+        .map(|chunk| {
+            let mut output = vec![0u8; key_size];
+            let num_bytes = key
+                .private_decrypt(&chunk[..], &mut output, Padding::PKCS1)
+                .map_err(|e| format!("decrypt failed: {:?}", e))?;
+            output.truncate(num_bytes as usize);
+            Ok(output)
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+
+    Ok(chunks
+        .into_iter()
+        .flat_map(|chunk| chunk.into_iter())
+        .collect())
+}
+
+/// Load a private key from a file
+pub fn load_private_key(src: &str) -> Result<Rsa<Private>, String> {
+    let key_str = std::fs::read_to_string(src)
+        .map_err(|err| format!("failed reading key file {}: {:?}", src, err))?;
+
+    Ok(
+        Rsa::private_key_from_pem_passphrase(key_str.as_bytes(), &[])
+            .map_err(|err| format!("failed parsing key file {}: {:?}", src, err))?,
     )
-    .map_err(|err| format!("{:?}", err))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use boring::pkey::Public;
+    use rand_core::{RngCore, SeedableRng};
+    use rand_hc::Hc128Rng;
+
+    /// Encrypt a payload of arbitrary length using a public key.
+    pub fn encrypt_public(key: &Rsa<Public>, payload: &[u8]) -> Result<Vec<u8>, String> {
+        // Each encrypted chunk must be no longer than the length of the public modulus minus 11 (PKCS1 padding size).
+        // (Taken from `rsa::oaep::encrypt`).
+        let key_size = key.size() as usize;
+        let max_chunk_size = key_size - PKCS1_PADDING_LEN;
+
+        let chunks: Vec<Vec<u8>> = payload
+            .chunks(max_chunk_size)
+            .map(|chunk| {
+                let mut output = vec![0u8; key_size];
+
+                key.public_encrypt(&chunk[..], &mut output, Padding::PKCS1)
+                    .map_err(|e| format!("encrypt failed: {:?}", e))?;
+
+                Ok(output)
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+
+        Ok(chunks
+            .into_iter()
+            .flat_map(|chunk| chunk.into_iter())
+            .collect())
+    }
+
+    /// Decrypt a payload of arbitrary length using a public key.
+    fn decrypt_public(key: &Rsa<Public>, payload: &[u8]) -> Result<Vec<u8>, String> {
+        let key_size = key.size() as usize;
+
+        let chunks: Vec<Vec<u8>> = payload
+            .chunks(key_size)
+            .map(|chunk| {
+                let mut output = vec![0u8; key_size];
+                let num_bytes = key
+                    .public_decrypt(&chunk[..], &mut output, Padding::PKCS1)
+                    .map_err(|e| format!("decrypt failed: {:?}", e))?;
+                output.truncate(num_bytes as usize);
+                Ok(output)
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+
+        Ok(chunks
+            .into_iter()
+            .flat_map(|chunk| chunk.into_iter())
+            .collect())
+    }
+
+    #[test]
+    fn short_message_encrypt_private_decrypt_public_works() {
+        let priv_key = Rsa::generate(2048).unwrap();
+
+        let pub_key_pem = priv_key.public_key_to_pem().unwrap();
+        let pub_key = Rsa::public_key_from_pem(&pub_key_pem).unwrap();
+
+        let message = b"this message is less than the key size";
+
+        let encrypted = encrypt(&priv_key, message).unwrap();
+        assert_eq!(encrypted.len(), priv_key.size() as usize);
+
+        let decrypted = decrypt_public(&pub_key, &encrypted).unwrap();
+        assert_eq!(message, &decrypted[..]);
+    }
+
+    #[test]
+    fn long_message_encrypt_private_decrypt_public_works1() {
+        let priv_key = Rsa::generate(2048).unwrap();
+
+        let pub_key_pem = priv_key.public_key_to_pem().unwrap();
+        let pub_key = Rsa::public_key_from_pem(&pub_key_pem).unwrap();
+
+        let mut message = vec![0u8; priv_key.size() as usize * 5 + 123]; // message size that does not divide exactly by the key length
+        let mut rng = Hc128Rng::from_seed([0u8; 32]);
+        rng.fill_bytes(&mut message);
+
+        let encrypted = encrypt(&priv_key, &message).unwrap();
+        assert_eq!(encrypted.len(), priv_key.size() as usize * 6);
+
+        let decrypted = decrypt_public(&pub_key, &encrypted).unwrap();
+        assert_eq!(message, &decrypted[..]);
+    }
+
+    #[test]
+    fn long_message_encrypt_private_decrypt_public_works2() {
+        let priv_key = Rsa::generate(2048).unwrap();
+
+        let pub_key_pem = priv_key.public_key_to_pem().unwrap();
+        let pub_key = Rsa::public_key_from_pem(&pub_key_pem).unwrap();
+
+        let mut message = vec![0u8; priv_key.size() as usize * 4]; // message size that divides exactly by the key length
+        let mut rng = Hc128Rng::from_seed([0u8; 32]);
+        rng.fill_bytes(&mut message);
+
+        let encrypted = encrypt(&priv_key, &message).unwrap();
+        assert_eq!(encrypted.len(), priv_key.size() as usize * 5); // longer than message because of padding
+
+        let decrypted = decrypt_public(&pub_key, &encrypted).unwrap();
+        assert_eq!(message, &decrypted[..]);
+    }
+
+    #[test]
+    fn long_message_encrypt_private_decrypt_public_works3() {
+        let priv_key = Rsa::generate(2048).unwrap();
+
+        let pub_key_pem = priv_key.public_key_to_pem().unwrap();
+        let pub_key = Rsa::public_key_from_pem(&pub_key_pem).unwrap();
+
+        let mut message = vec![0u8; 3 * (priv_key.size() as usize - PKCS1_PADDING_LEN)]; // message size that divides exactly by the key length
+        let mut rng = Hc128Rng::from_seed([0u8; 32]);
+        rng.fill_bytes(&mut message);
+
+        let encrypted = encrypt(&priv_key, &message).unwrap();
+        assert_eq!(encrypted.len(), priv_key.size() as usize * 3);
+
+        let decrypted = decrypt_public(&pub_key, &encrypted).unwrap();
+        assert_eq!(message, &decrypted[..]);
+    }
+
+    #[test]
+    fn short_message_encrypt_public_decrypt_private_works() {
+        let priv_key = Rsa::generate(2048).unwrap();
+
+        let pub_key_pem = priv_key.public_key_to_pem().unwrap();
+        let pub_key = Rsa::public_key_from_pem(&pub_key_pem).unwrap();
+
+        let message = b"this message is less than the key size";
+
+        let encrypted = encrypt_public(&pub_key, message).unwrap();
+        assert_eq!(encrypted.len(), priv_key.size() as usize);
+
+        let decrypted = decrypt(&priv_key, &encrypted).unwrap();
+        assert_eq!(message, &decrypted[..]);
+    }
+
+    #[test]
+    fn long_message_encrypt_public_decrypt_private_works1() {
+        let priv_key = Rsa::generate(2048).unwrap();
+
+        let pub_key_pem = priv_key.public_key_to_pem().unwrap();
+        let pub_key = Rsa::public_key_from_pem(&pub_key_pem).unwrap();
+
+        let mut message = vec![0u8; priv_key.size() as usize * 5 + 123]; // message size that does not divide exactly by the key length
+        let mut rng = Hc128Rng::from_seed([0u8; 32]);
+        rng.fill_bytes(&mut message);
+
+        let encrypted = encrypt_public(&pub_key, &message).unwrap();
+        assert_eq!(encrypted.len(), priv_key.size() as usize * 6);
+
+        let decrypted = decrypt(&priv_key, &encrypted).unwrap();
+        assert_eq!(message, &decrypted[..]);
+    }
+
+    #[test]
+    fn long_message_encrypt_public_decrypt_private_works2() {
+        let priv_key = Rsa::generate(2048).unwrap();
+
+        let pub_key_pem = priv_key.public_key_to_pem().unwrap();
+        let pub_key = Rsa::public_key_from_pem(&pub_key_pem).unwrap();
+
+        let mut message = vec![0u8; priv_key.size() as usize * 4]; // message size that divides exactly by the key length
+        let mut rng = Hc128Rng::from_seed([0u8; 32]);
+        rng.fill_bytes(&mut message);
+
+        let encrypted = encrypt_public(&pub_key, &message).unwrap();
+        assert_eq!(encrypted.len(), priv_key.size() as usize * 5); // longer than message because of padding
+
+        let decrypted = decrypt(&priv_key, &encrypted).unwrap();
+        assert_eq!(message, &decrypted[..]);
+    }
+
+    #[test]
+    fn long_message_encrypt_public_decrypt_private_works3() {
+        let priv_key = Rsa::generate(2048).unwrap();
+
+        let pub_key_pem = priv_key.public_key_to_pem().unwrap();
+        let pub_key = Rsa::public_key_from_pem(&pub_key_pem).unwrap();
+
+        let mut message = vec![0u8; 3 * (priv_key.size() as usize - PKCS1_PADDING_LEN)]; // message size that divides exactly by the key length
+        let mut rng = Hc128Rng::from_seed([0u8; 32]);
+        rng.fill_bytes(&mut message);
+
+        let encrypted = encrypt_public(&pub_key, &message).unwrap();
+        assert_eq!(encrypted.len(), priv_key.size() as usize * 3);
+
+        let decrypted = decrypt(&priv_key, &encrypted).unwrap();
+        assert_eq!(message, &decrypted[..]);
+    }
 }

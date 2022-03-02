@@ -18,7 +18,7 @@ use mc_util_grpc::{BuildInfoService, ConnectionUriGrpcioServer, HealthService};
 use mc_util_uri::{ConnectionUri, Uri, UriScheme};
 use mc_wallet_service_mirror::{
     uri::WalletServiceMirrorUri,
-    wallet_service_mirror_api::{QueryRequest, SignedRequest, UnsignedRequest},
+    wallet_service_mirror_api::{EncryptedRequest, QueryRequest, UnencryptedRequest},
 };
 use mirror_service::MirrorService;
 use query::QueryManager;
@@ -105,26 +105,26 @@ impl From<String> for BadRequest {
     }
 }
 
-#[post("/unsigned-request", format = "json", data = "<request_data>")]
-fn unsigned_request(
+#[post("/unencrypted-request", format = "json", data = "<request_data>")]
+fn unencrypted_request(
     state: rocket::State<State>,
     request_data: rocket::Data,
 ) -> Result<String, BadRequest> {
     let mut request = String::new();
     let res = request_data.open().read_to_string(&mut request);
     if res.is_err() {
-        let msg = "Could not read request data for unsigned request.";
+        let msg = "Could not read request data for unencrypted request.";
         log::error!(state.logger, "{}", msg,);
         return Err(msg.into());
     }
 
-    log::debug!(state.logger, "Enqueueing UnsignedRequest({})", &request,);
+    log::debug!(state.logger, "Enqueueing UnencryptedRequest({})", &request,);
 
-    let mut unsigned_request = UnsignedRequest::new();
-    unsigned_request.set_json_request(request.clone());
+    let mut unencrypted_request = UnencryptedRequest::new();
+    unencrypted_request.set_json_request(request.clone());
 
     let mut query_request = QueryRequest::new();
-    query_request.set_unsigned_request(unsigned_request);
+    query_request.set_unencrypted_request(unencrypted_request);
 
     let query = state.query_manager.enqueue_query(query_request);
     let query_response = query.wait()?;
@@ -132,7 +132,7 @@ fn unsigned_request(
     if query_response.has_error() {
         log::error!(
             state.logger,
-            "UnsignedRequest({}) failed: {}",
+            "UnencryptedRequest({}) failed: {}",
             request,
             query_response.get_error()
         );
@@ -141,7 +141,7 @@ fn unsigned_request(
     if !query_response.has_unencrypted_response() {
         log::error!(
             state.logger,
-            "UnsignedRequest({}) returned incorrect response type",
+            "UnencryptedRequest({}) returned incorrect response type",
             request,
         );
         return Err("Incorrect response type received".into());
@@ -149,7 +149,7 @@ fn unsigned_request(
 
     log::info!(
         state.logger,
-        "UnsignedRequest({}) completed successfully",
+        "UnencryptedRequest({}) completed successfully",
         request,
     );
 
@@ -158,27 +158,25 @@ fn unsigned_request(
 }
 
 #[derive(Deserialize)]
-struct JsonSignedRequest {
-    request: String,
-    signature: Vec<u8>,
+struct JsonEncryptedRequest {
+    payload: Vec<u8>,
 }
 
-#[post("/signed-request", format = "json", data = "<request>")]
-fn signed_request(
+#[post("/encrypted-request", format = "json", data = "<request>")]
+fn encrypted_request(
     state: rocket::State<State>,
-    request: Json<JsonSignedRequest>,
+    request: Json<JsonEncryptedRequest>,
 ) -> Result<Vec<u8>, BadRequest> {
-    let mut signed_request = SignedRequest::new();
-    signed_request.set_json_request(request.request.clone());
-    signed_request.set_signature(request.signature.clone());
+    let mut encrypted_request = EncryptedRequest::new();
+    encrypted_request.set_payload(request.payload.clone());
 
     let mut query_request = QueryRequest::new();
-    query_request.set_signed_request(signed_request);
+    query_request.set_encrypted_request(encrypted_request);
 
     log::debug!(
         state.logger,
-        "Enqueueing SignedRequest({})",
-        request.request,
+        "Enqueueing EncryptedRequest({} bytes)",
+        request.payload.len(),
     );
     let query = state.query_manager.enqueue_query(query_request);
     let query_response = query.wait()?;
@@ -186,8 +184,8 @@ fn signed_request(
     if query_response.has_error() {
         log::error!(
             state.logger,
-            "SignedRequest({}) failed: {}",
-            request.request,
+            "EncryptedRequest({} bytes) failed: {}",
+            request.payload.len(),
             query_response.get_error()
         );
         return Err(query_response.get_error().into());
@@ -195,16 +193,16 @@ fn signed_request(
     if !query_response.has_encrypted_response() {
         log::error!(
             state.logger,
-            "SignedRequest({}) returned incorrect response type",
-            request.request,
+            "EncryptedRequest({} bytes) returned incorrect response type",
+            request.payload.len(),
         );
         return Err("Incorrect response type received".into());
     }
 
     log::info!(
         state.logger,
-        "SignedRequest({}) completed successfully",
-        request.request,
+        "EncryptedRequest({} bytes) completed successfully",
+        request.payload.len(),
     );
 
     let response = query_response.get_encrypted_response();
@@ -291,7 +289,7 @@ fn main() {
 
     log::info!(logger, "Starting client web server");
     rocket::custom(rocket_config)
-        .mount("/", routes![unsigned_request, signed_request,])
+        .mount("/", routes![unencrypted_request, encrypted_request])
         .manage(State {
             query_manager,
             logger,

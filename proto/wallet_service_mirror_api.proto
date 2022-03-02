@@ -16,8 +16,8 @@ service WalletServiceMirror {
 // When adding request types, remember to add them in `src/private/request.rs` as well.
 message QueryRequest {
     oneof request {
-        UnsignedRequest unsigned_request = 1;
-        SignedRequest signed_request = 2;
+        UnencryptedRequest unencrypted_request = 1;
+        EncryptedRequest encrypted_request = 2;
     }
 }
 
@@ -43,16 +43,14 @@ message PollResponse {
     map<string, QueryRequest> query_requests = 1;
 }
 
-// A normal request.
-message UnsignedRequest {
+// A plaintext request.
+message UnencryptedRequest {
     string json_request = 1;
 }
 
-// A request thas has been signed by the client.
-message SignedRequest {
-    // See private/request.rs for details on the format of this JSON request.
-    string json_request = 1;
-    bytes signature = 2;
+// A request thas has been encrypted by the client.
+message EncryptedRequest {
+    bytes payload = 1;
 }
 
 // A normal response.
