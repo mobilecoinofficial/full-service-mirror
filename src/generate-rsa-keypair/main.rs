@@ -9,15 +9,27 @@ const PRIVATE_KEY_FILENAME: &str = "mirror-private.pem";
 const PUBLIC_KEY_FILENAME: &str = "mirror-client.pem";
 
 fn main() {
-    if Path::new(PRIVATE_KEY_FILENAME).exists() {
-        panic!("{} already exists", PRIVATE_KEY_FILENAME);
-    }
     if Path::new(PUBLIC_KEY_FILENAME).exists() {
         panic!("{} already exists", PUBLIC_KEY_FILENAME);
     }
-
-    println!("Generating private key, this might take a few seconds...");
-    let priv_key = Rsa::generate(4096).expect("failed generating private key");
+    let priv_key = if Path::new(PRIVATE_KEY_FILENAME).exists() {
+        println!("Reading existing private key file {}", PRIVATE_KEY_FILENAME);
+        let key_str = std::fs::read_to_string(PRIVATE_KEY_FILENAME).unwrap_or_else(|err| {
+            panic!(
+                "failed reading private key file {}: {}",
+                PRIVATE_KEY_FILENAME, err
+            )
+        });
+        Rsa::private_key_from_pem_passphrase(key_str.as_bytes(), &[]).unwrap_or_else(|err| {
+            panic!(
+                "failed parsing private key file {}: {}",
+                PRIVATE_KEY_FILENAME, err
+            )
+        })
+    } else {
+        println!("Generating private key, this might take a few seconds...");
+        Rsa::generate(4096).expect("failed generating private key")
+    };
 
     let priv_key_pem = priv_key
         .private_key_to_pem()
