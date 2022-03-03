@@ -84,7 +84,7 @@ function encrypt(buf) {
     let res = [];
 
     // Each encrypted chunk must be no longer than the length of the public modulus minus padding size.
-    // PKCS1 is 11 bytes of padding.
+    // PKCS1 is 11 bytes of padding (which is also defined as PKCS1_PADDING_LEN in the rust code).
     const MAX_CHUNK_SIZE = KEY_SIZE - 11;
 
     while (buf.length > 0) {

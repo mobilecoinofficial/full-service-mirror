@@ -122,7 +122,7 @@ mod tests {
     }
 
     #[test]
-    fn short_message_encrypt_private_decrypt_public_works() {
+    fn encrypt_private_decrypt_public_works_with_short_message() {
         let priv_key = Rsa::generate(2048).unwrap();
 
         let pub_key_pem = priv_key.public_key_to_pem().unwrap();
@@ -138,7 +138,7 @@ mod tests {
     }
 
     #[test]
-    fn long_message_encrypt_private_decrypt_public_works1() {
+    fn encrypt_private_decrypt_public_works_with_long_message_that_isnt_a_multiple_of_key_size() {
         let priv_key = Rsa::generate(2048).unwrap();
 
         let pub_key_pem = priv_key.public_key_to_pem().unwrap();
@@ -156,7 +156,7 @@ mod tests {
     }
 
     #[test]
-    fn long_message_encrypt_private_decrypt_public_works2() {
+    fn encrypt_private_decrypt_public_works_with_long_message_that_is_a_multiple_of_key_size() {
         let priv_key = Rsa::generate(2048).unwrap();
 
         let pub_key_pem = priv_key.public_key_to_pem().unwrap();
@@ -174,13 +174,13 @@ mod tests {
     }
 
     #[test]
-    fn long_message_encrypt_private_decrypt_public_works3() {
+    fn encrypt_private_decrypt_public_works_with_long_message_that_is_a_multiple_of_chunk_size() {
         let priv_key = Rsa::generate(2048).unwrap();
 
         let pub_key_pem = priv_key.public_key_to_pem().unwrap();
         let pub_key = Rsa::public_key_from_pem(&pub_key_pem).unwrap();
 
-        let mut message = vec![0u8; 3 * (priv_key.size() as usize - PKCS1_PADDING_LEN)]; // message size that divides exactly by the key length
+        let mut message = vec![0u8; 3 * (priv_key.size() as usize - PKCS1_PADDING_LEN)]; // message size that divides exactly by the chunk size
         let mut rng = Hc128Rng::from_seed([0u8; 32]);
         rng.fill_bytes(&mut message);
 
@@ -192,7 +192,7 @@ mod tests {
     }
 
     #[test]
-    fn short_message_encrypt_public_decrypt_private_works() {
+    fn encrypt_public_decrypt_private_works_with_short_message() {
         let priv_key = Rsa::generate(2048).unwrap();
 
         let pub_key_pem = priv_key.public_key_to_pem().unwrap();
@@ -208,7 +208,7 @@ mod tests {
     }
 
     #[test]
-    fn long_message_encrypt_public_decrypt_private_works1() {
+    fn encrypt_public_decrypt_private_works_with_long_message_that_isnt_a_multiple_of_key_size() {
         let priv_key = Rsa::generate(2048).unwrap();
 
         let pub_key_pem = priv_key.public_key_to_pem().unwrap();
@@ -226,7 +226,7 @@ mod tests {
     }
 
     #[test]
-    fn long_message_encrypt_public_decrypt_private_works2() {
+    fn encrypt_public_decrypt_private_works_with_long_message_that_is_a_multiple_of_key_size() {
         let priv_key = Rsa::generate(2048).unwrap();
 
         let pub_key_pem = priv_key.public_key_to_pem().unwrap();
@@ -244,13 +244,13 @@ mod tests {
     }
 
     #[test]
-    fn long_message_encrypt_public_decrypt_private_works3() {
+    fn encrypt_public_decrypt_private_works_with_long_message_that_is_a_multiple_of_chunk_size() {
         let priv_key = Rsa::generate(2048).unwrap();
 
         let pub_key_pem = priv_key.public_key_to_pem().unwrap();
         let pub_key = Rsa::public_key_from_pem(&pub_key_pem).unwrap();
 
-        let mut message = vec![0u8; 3 * (priv_key.size() as usize - PKCS1_PADDING_LEN)]; // message size that divides exactly by the key length
+        let mut message = vec![0u8; 3 * (priv_key.size() as usize - PKCS1_PADDING_LEN)]; // message size that divides exactly by the chunk size
         let mut rng = Hc128Rng::from_seed([0u8; 32]);
         rng.fill_bytes(&mut message);
 
