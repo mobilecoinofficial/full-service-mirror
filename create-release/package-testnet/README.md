@@ -114,7 +114,7 @@ In order to use this mode, follow the following steps.
 
 ### TLS Connection
 
-In order to have a tls connection between the public and private sides of the mirror, you need to use a certificate pair. For testing, you can generate these with `openssl req -x509 -sha256 -nodes -newkey rsa:2048 -days 365 -keyout mirror.key -out mirror.crt`.
+In order to have a tls connection between the public and private sides of the mirror, you need to use a certificate pair. For testing, you can generate these with `openssl req -x509 -sha256 -nodes -newkey rsa:2048 -days 365 -keyout server.key -out server.crt`.
 
 Note that the `Common Name` needs to match the hostname which you would be using to connect to the public side (that has the GRPC listening port).
 
@@ -129,7 +129,7 @@ If you would like to run this without end to end encryption use the following co
 Otherwise, use this one
 
 ```sh
-./bin/wallet-service-mirror-public --client-listen-uri http://0.0.0.0:9091/ --mirror-listen-uri "wallet-service-mirror://0.0.0.0/?tls-chain=mirror.crt&tls-key=mirror.key" --allow-self-signed-tls
+./bin/wallet-service-mirror-public --client-listen-uri http://0.0.0.0:9091/ --mirror-listen-uri "wallet-service-mirror://0.0.0.0/?tls-chain=server.crt&tls-key=server.key" --allow-self-signed-tls
 ```
 
 
@@ -144,7 +144,7 @@ If you would like to run this without end to end encryption use the following co
 To run with encryption, use the following command
 
 ```sh
-./bin/wallet-service-mirror-private --mirror-public-uri "wallet-service-mirror://localhost/?ca-bundle=mirror.crt&tls-hostname=localhost" --wallet-service-uri http://localhost:9090/wallet --mirror-key mirror-private.pem
+./bin/wallet-service-mirror-private --mirror-public-uri "wallet-service-mirror://localhost/?ca-bundle=server.crt&tls-hostname=localhost" --wallet-service-uri http://localhost:9090/wallet --mirror-key mirror-private.pem
 ```
 
 NOTE: Notice the --mirror-key flag with the mirror-private.pem file, generated with the generate-rsa-keypair utility.

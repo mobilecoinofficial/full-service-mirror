@@ -29,4 +29,4 @@ echo "Daemon is starting up (5 seconds)"
 sleep 5
 
 echo "Starting the private side of the mirror."
-./bin/wallet-service-mirror-private --mirror-public-uri "wallet-service-mirror://$PUBLIC_HOST/?ca-bundle=mirror.crt&tls-hostname=localhost" --wallet-service-uri http://localhost:9090/wallet --mirror-key mirror-private.pem
+./bin/wallet-service-mirror-private --mirror-public-uri "wallet-service-mirror://$PUBLIC_HOST/?ca-bundle=server.crt&tls-hostname=localhost" --wallet-service-uri http://localhost:9090/wallet --mirror-key mirror-private.pem
