@@ -112,20 +112,19 @@ but can connect to a host running the LVN.
 
 To use, you will need to start both sides of the mirror.
 
-### End-to-end encryption and request verification
+### End-to-end encryption
 
-It is possible to run the mirror in a mode that causes it to authenticate requests from clients, and encrypt responses. In this mode, anyone having access to the public side of the mirror will be unable to tamper with requests or view response data. When running in this mode, which is enabled by passing the `--mirror-key` argument to the private side of th\
-e mirror, only signed requests will be processed and only encrypted responses will be returned.
+It is possible to run the mirror in a mode that causes it to encrypt requests and responses between the private side and the client. In this mode, anyone having access to the public side of the mirror will be unable to tamper with requests/responses or view them. When running in this mode, which is enabled by passing the `--mirror-key` argument to the private side of the mirror, only encrypted requests will be processed and only encrypted responses will be returned.
 
 In order to use this mode, follow the following steps.
 
 1) Ensure that you have NodeJS installed. **The minimum supported version is v12.9.0** (`node -v`)
 
-1) Generate a keypair: `node generate-keys.js`. This will generate two files: `mirror-client.pem` and `mirror-private.pem`.
+1) Generate a keypair: `./bin/generate-rsa-keypair`. This will generate two files: `mirror-client.pem` and `mirror-private.pem`.
 
 ### TLS Connection
 
-In order to have a tls connection between the public and private sides of the mirror, you need to use a certificate pair. For testing, you can generate these with `openssl req -x509 -sha256 -nodes -newkey rsa:2048 -days 365 -keyout mirror.key -out mirror.crt`.
+In order to have a tls connection between the public and private sides of the mirror, you need to use a certificate pair. For testing, you can generate these with `openssl req -x509 -sha256 -nodes -newkey rsa:2048 -days 365 -keyout server.key -out server.crt`.
 
 Note that the `Common Name` needs to match the hostname which you would be using to connect to the public side (that has the GRPC listening port).
 
@@ -140,9 +139,8 @@ If you would like to run this without end to end encryption use the following co
 To run with encryption, use the following command
 
 ```sh
-./bin/wallet-service-mirror-public --client-listen-uri http://0.0.0.0:9091/ --mirror-listen-uri "wallet-service-mirror://0.0.0.0/?tls-chain=mirror.crt&tls-key=mirror.key" --allow-self-signed-tls
+./bin/wallet-service-mirror-public --client-listen-uri http://0.0.0.0:9091/ --mirror-listen-uri "wallet-service-mirror://0.0.0.0/?tls-chain=server.crt&tls-key=server.key" --allow-self-signed-tls
 ```
-
 
 ### Private Mirror
 
@@ -155,17 +153,17 @@ If you would like to run this without end to end encryption use the following co
 To run with encryption, use the following command
 
 ```sh
-./bin/wallet-service-mirror-private --mirror-public-uri "wallet-service-mirror://localhost/?ca-bundle=mirror.crt&tls-hostname=localhost" --wallet-service-uri http://localhost:9090/wallet --mirror-key mirror-private.pem
+./bin/wallet-service-mirror-private --mirror-public-uri "wallet-service-mirror://localhost/?ca-bundle=server.crt&tls-hostname=localhost" --wallet-service-uri http://localhost:9090/wallet --mirror-key mirror-private.pem
 ```
 
-NOTE: Notice the --mirror-key flag with the mirror-private.pem file, generated with the generate-keys.js script.
+NOTE: Notice the --mirror-key flag with the mirror-private.pem file, generated with the generate-rsa-keypair binary.
 
 Once launched, without end to end encryption, you can test it using curl:
 
 Get block information (for block 0):
 
 ```
-curl -X POST -H 'Content-Type: application/json' -d '{"method": "get_block", "params": {"block_index": "0"}, "jsonrpc": "2.0", "id": 1}' http://localhost:9091/unsigned-request
+curl -X POST -H 'Content-Type: application/json' -d '{"method": "get_block", "params": {"block_index": "0"}, "jsonrpc": "2.0", "id": 1}' http://localhost:9091/unencrypted-request
 ```
 Returns:
 ```

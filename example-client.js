@@ -1,7 +1,7 @@
 // Minimum supported NodeJS version: v12.9.0
 const NODE_MAJOR_VERSION = process.versions.node.split('.')[0];
 if (NODE_MAJOR_VERSION < 12) {
-  throw new Error('Requires Node 12 (or higher)');
+    throw new Error('Requires Node 12 (or higher)');
 }
 
 // Imports
@@ -13,7 +13,7 @@ const crypto = require('crypto');
 if (process.argv.length != 6) {
     console.log(`Usage: node example-client.js <public mirror host> <public mirror port> <key file> <request>`);
     console.log(`For example: node example-client.js 127.0.0.1 9091 mirror-client.pem '{"GetBlock": {"block": 0}}'`);
-    console.log('To generate keys please run generate-keys.js. See README.md for more details')
+    console.log('To generate keys please run the generate-rsa-keypair binary. See README.md for more details')
     return;
 }
 
@@ -27,7 +27,7 @@ let key_bytes = fs.readFileSync(key_file)
 if (!key_bytes) {
     throw 'Failed loading key';
 }
-let key = crypto.createPrivateKey({key: key_bytes, passphrase: ''});
+let key = crypto.createPublicKey(key_bytes);
 if (!key) {
     throw 'Failed creating key';
 }
@@ -41,42 +41,40 @@ if (test_data.length != KEY_SIZE) {
 }
 
 // Prepare request
-let signature = sign(request);
+let encrypted_request = encrypt(request);
 let post_data = JSON.stringify({
-    request: request,
-    signature: [...signature],
+    payload: [...encrypted_request],
 });
-
 // Send request to server
 let req = http.request({
     host: public_mirror_host,
     port: public_mirror_port,
     timeout: 120000,
-    path: '/signed-request',
-	method: 'POST',
-	headers: {
-	    'Content-Type': 'application/json',
-	    'Content-Length': Buffer.byteLength(post_data)
-	}
-}, (response) => {
-    	let buf = []
-        response.on('data', (chunk) => {
-            buf.push(chunk)
-        });
-
-        response.on('end', () => {
-            if(response.statusCode == 200) {
-                let result = decrypt(Buffer.concat(buf)).toString();
-                console.log(result);
-            } else {
-                console.log(`Http error, status: ${response.statusCode}: ${buf}`)
-            }
-        });
-
-        response.on('error', (error) => {
-            console.log('error occured while reading response:', error);
-        })
+    path: '/encrypted-request',
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(post_data)
     }
+}, (response) => {
+    let buf = []
+    response.on('data', (chunk) => {
+        buf.push(chunk)
+    });
+
+    response.on('end', () => {
+        if (response.statusCode == 200) {
+            let result = decrypt(Buffer.concat(buf)).toString();
+            console.log(result);
+        } else {
+            console.log(`Http error, status: ${response.statusCode}: ${buf}`)
+        }
+    });
+
+    response.on('error', (error) => {
+        console.log('error occured while reading response:', error);
+    })
+}
 )
 req.write(post_data)
 req.end()
@@ -84,22 +82,18 @@ req.end()
 // Crypto utilities
 function encrypt(buf) {
     let res = [];
-    let pub_key = crypto.createPublicKey(key);
 
-    // Each encrypted chunk must be no longer than the length of the public modulus minus (2 + 2*hash.size()).
-    // Since hash size is 32 (SHA256), this equals to 66.
-    const MAX_CHUNK_SIZE = KEY_SIZE - 66;
+    // Each encrypted chunk must be no longer than the length of the public modulus minus padding size.
+    // PKCS1 is 11 bytes of padding (which is also defined as PKCS1_PADDING_LEN in the rust code).
+    const MAX_CHUNK_SIZE = KEY_SIZE - 11;
 
-    while (buf.length > 0)
-    {
+    while (buf.length > 0) {
         let data = buf.slice(0, MAX_CHUNK_SIZE);
         buf = buf.slice(data.length);
 
         res.push(crypto.publicEncrypt({
-            key: pub_key,
-            oaepHash: 'sha256',
-            padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-            passphrase: '',
+            key: key,
+            padding: crypto.constants.RSA_PKCS1_PADDING,
         }, Buffer.from(data)));
     }
 
@@ -109,16 +103,13 @@ function encrypt(buf) {
 function decrypt(buf) {
     let res = [];
 
-    while (buf.length > 0)
-    {
+    while (buf.length > 0) {
         let data = buf.slice(0, KEY_SIZE);
         buf = buf.slice(data.length);
 
-        res.push(crypto.privateDecrypt({
+        res.push(crypto.publicDecrypt({
             key,
-            oaepHash: 'sha256',
-            padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-            passphrase: '',
+            padding: crypto.constants.RSA_PKCS1_PADDING,
         }, Buffer.from(data)));
     }
 

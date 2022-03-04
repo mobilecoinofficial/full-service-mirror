@@ -8,6 +8,8 @@
 
 mod crypto;
 
+use crate::crypto::{decrypt, encrypt, load_private_key};
+use boring::{pkey::Private, rsa::Rsa};
 use grpcio::ChannelBuilder;
 use mc_common::logger::{create_app_logger, log, o, Logger};
 use mc_util_grpc::ConnectionUriGrpcioChannel;
@@ -18,11 +20,7 @@ use mc_wallet_service_mirror::{
     },
     wallet_service_mirror_api_grpc::WalletServiceMirrorClient,
 };
-use protobuf::Message;
-use rsa::RSAPublicKey;
-use std::{
-    collections::HashMap, convert::TryFrom, str::FromStr, sync::Arc, thread::sleep, time::Duration,
-};
+use std::{collections::HashMap, str::FromStr, sync::Arc, thread::sleep, time::Duration};
 use structopt::StructOpt;
 
 const SUPPORTED_ENDPOINTS: &[&str] = &[
@@ -83,11 +81,11 @@ pub struct Config {
     #[structopt(long, default_value = "100", parse(try_from_str=parse_duration_in_milliseconds))]
     pub poll_interval: Duration,
 
-    /// Optional encryption public key. If provided, only signed requests are accepted.
+    /// Optional encryption public key. If provided, only encrypted requests are accepted.
     /// See `example-client.js` for an example on how to submit encrypted requests through
     /// the mirror.
-    #[structopt(long, parse(try_from_str=load_public_key))]
-    pub mirror_key: Option<RSAPublicKey>,
+    #[structopt(long, parse(try_from_str=load_private_key))]
+    pub mirror_key: Option<Rsa<Private>>,
 }
 
 fn main() {
@@ -214,14 +212,20 @@ fn process_unencrypted_request(
     query_request: &QueryRequest,
     logger: &Logger,
 ) -> Result<QueryResponse, String> {
-    if !query_request.has_unsigned_request() {
-        return Err("Only processing unsigned requests".into());
+    if !query_request.has_unencrypted_request() {
+        return Err("Only processing unencrypted requests".into());
     }
 
-    let unsigned_request = query_request.get_unsigned_request();
+    let unencrypted_request = query_request.get_unencrypted_request();
+
+    log::debug!(
+        logger,
+        "Incoming unencrypted request ({})",
+        unencrypted_request.json_request
+    );
 
     // Check that the request is of an allowed type.
-    match validate_method(&unsigned_request.json_request) {
+    match validate_method(&unencrypted_request.json_request) {
         Ok(true) => (),
         Ok(false) => return Err("Unsupported request".into()),
         Err(err) => {
@@ -231,12 +235,6 @@ fn process_unencrypted_request(
         }
     }
 
-    log::debug!(
-        logger,
-        "Incoming unsigned request ({})",
-        unsigned_request.json_request
-    );
-
     // Pass request along to full-service.
     let client = reqwest::blocking::Client::builder()
         .timeout(FULL_SERVICE_TIMEOUT)
@@ -245,7 +243,7 @@ fn process_unencrypted_request(
     let res = client
         .post(wallet_service_uri)
         .header(reqwest::header::CONTENT_TYPE, "application/json")
-        .body(unsigned_request.json_request.clone())
+        .body(unencrypted_request.json_request.clone())
         .send()
         .map_err(|e| e.to_string())?;
     let json_response = res.text().map_err(|e| e.to_string())?;
@@ -260,38 +258,34 @@ fn process_unencrypted_request(
 
 fn process_encrypted_request(
     wallet_service_uri: &str,
-    mirror_key: &RSAPublicKey,
+    mirror_key: &Rsa<Private>,
     query_request: &QueryRequest,
     logger: &Logger,
 ) -> Result<QueryResponse, String> {
-    if !query_request.has_signed_request() {
-        return Err("Only processing signed requests".into());
+    if !query_request.has_encrypted_request() {
+        return Err("Only processing encrypted requests".into());
     }
 
-    let signed_request = query_request.get_signed_request();
+    let encrypted_request = query_request.get_encrypted_request();
 
-    log::debug!(
-        logger,
-        "Incoming signed request ({})",
-        signed_request.json_request
-    );
+    // Decrypt the request.
+    let json_request = match decrypt(mirror_key, &encrypted_request.payload)
+        .map_err(|err| format!("Error decrypting request: {}", err))
+        .and_then(|decrypted| {
+            String::from_utf8(decrypted).map_err(|err| format!("Error parsing utf8: {}", err))
+        }) {
+        Ok(json_request) => json_request,
+        Err(err) => {
+            let mut err_query_response = QueryResponse::new();
+            err_query_response.set_error(err);
+            return Ok(err_query_response);
+        }
+    };
 
-    // Verify request signature.
-    let sig_is_valid = crypto::verify_sig(
-        mirror_key,
-        signed_request.json_request.as_bytes(),
-        &signed_request.signature,
-    )
-    .is_ok();
-
-    if !sig_is_valid {
-        let mut err_query_response = QueryResponse::new();
-        err_query_response.set_error("Signature verification failed".to_owned());
-        return Ok(err_query_response);
-    }
+    log::debug!(logger, "Incoming encrypted request ({})", json_request,);
 
     // Check that the request is of an allowed type.
-    match validate_method(&signed_request.json_request) {
+    match validate_method(&json_request) {
         Ok(true) => (),
         Ok(false) => return Err("Unsupported request".into()),
         Err(err) => {
@@ -309,13 +303,13 @@ fn process_encrypted_request(
     let res = client
         .post(wallet_service_uri)
         .header(reqwest::header::CONTENT_TYPE, "application/json")
-        .body(signed_request.json_request.clone())
+        .body(json_request.clone())
         .send()
         .map_err(|e| e.to_string())?;
     let json_response = res.text().map_err(|e| e.to_string())?;
 
     let encrypted_payload =
-        crypto::encrypt(mirror_key, &json_response.as_bytes()).map_err(|_e| "Encryption failed")?;
+        encrypt(mirror_key, &json_response.as_bytes()).map_err(|_e| "Encryption failed")?;
 
     let mut encrypted_response = EncryptedResponse::new();
     encrypted_response.set_payload(encrypted_payload);
@@ -327,13 +321,4 @@ fn process_encrypted_request(
 
 fn parse_duration_in_milliseconds(src: &str) -> Result<Duration, std::num::ParseIntError> {
     Ok(Duration::from_millis(u64::from_str(src)?))
-}
-
-fn load_public_key(src: &str) -> Result<RSAPublicKey, String> {
-    let key_str = std::fs::read_to_string(src)
-        .map_err(|err| format!("failed reading key file {}: {:?}", src, err))?;
-    let pem = pem::parse(&key_str)
-        .map_err(|err| format!("failed parsing key file {}: {:?}", src, err))?;
-    Ok(RSAPublicKey::try_from(pem)
-        .map_err(|err| format!("failed loading key file {}: {:?}", src, err))?)
 }
