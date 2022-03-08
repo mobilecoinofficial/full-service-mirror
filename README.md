@@ -39,7 +39,7 @@ Once started, the private side should no longer show errors and the mirror shoul
 Query block details:
 
 ```
-curl -s localhost:9091/unsigned-request \
+curl -s localhost:9091/unencrypted-request \
   -d '{
         "method": "get_block",
         "params": {
@@ -104,13 +104,13 @@ Notice that the `mirror-public-uri` parameter has changed to reflect the TLS cer
 Currently, due to `ring` crate version conflicts, it is is not possible to enable the `tls` feature on `rocket` (the HTTP server used by `mc-wallet-service-mirror-public`). If you want to provide TLS encryption for clients, you would need to put `mc-wallet-service-mirror-public` behind a reverse proxy such as `nginx` and have that take care of your TLS needs.
 
 
-### End-to-end encryption and request verification
+### End-to-end encryption
 
-It is possible to run the mirror in a mode that causes it to authenticate requests from clients, and encrypt responses. In this mode, anyone having access to the public side of the mirror will be unable to tamper with requests or view response data. When running in this mode, which is enabled by passing the `--mirror-key` argument to the private side of the mirror, only signed requests will be processed and only encrypted responses will be returned.
+It is possible to run the mirror in a mode that causes it to encrypt requests and responses between the private side and the client. In this mode, anyone having access to the public side of the mirror will be unable to tamper with requests/responses or view them. When running in this mode, which is enabled by passing the `--mirror-key` argument to the private side of the mirror, only encrypted requests will be processed and only encrypted responses will be returned.
 
 In order to use this mode, follow the following steps.
 1) Ensure that you have NodeJS installed. **The minimum supported version is v12.9.0** (`node -v`)
-1) Generate a keypair: `node generate-keys.js`. This will generate two files: `mirror-client.pem` and `mirror-private.pem`.
+1) Generate a keypair by running the `generate-rsa-keypair` binary. This will generate two files: `mirror-client.pem` and `mirror-private.pem`.
 1) Run the public side of the mirror as usual, for example: `cargo run -p mc-wallet-service-mirror --bin wallet-service-mirror-public -- --client-listen-uri http://0.0.0.0:9091/ --mirror-listen-uri insecure-wallet-service-mirror://127.0.0.1/`
 1) Copy the `mirror-private.pem` file to where you would be running the private side of the mirror, and run it: `cargo run -p mc-wallet-service-mirror --bin wallet-service-mirror-private -- --mirror-public-uri insecure-wallet-service-mirror://127.0.0.1/ --wallet-service-uri http://localhost:9090/wallet --mirror-key mirror-private.pem`. Notice the addition of the `--mirror-key` argument.
 1) Issue a response using the sample client:
