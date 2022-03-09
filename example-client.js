@@ -8,79 +8,68 @@ if (NODE_MAJOR_VERSION < 12) {
 const http = require('http');
 const fs = require('fs');
 const crypto = require('crypto');
-
-// Command line parsing
-if (process.argv.length != 6) {
-    console.log(`Usage: node example-client.js <public mirror host> <public mirror port> <key file> <request>`);
-    console.log(`For example: node example-client.js 127.0.0.1 9091 mirror-client.pem '{"GetBlock": {"block": 0}}'`);
-    console.log('To generate keys please run the generate-rsa-keypair binary. See README.md for more details')
-    return;
-}
-
-let public_mirror_host = process.argv[2];
-let public_mirror_port = process.argv[3];
-let key_file = process.argv[4];
-let request = process.argv[5];
-
-// Load key
-let key_bytes = fs.readFileSync(key_file)
-if (!key_bytes) {
-    throw 'Failed loading key';
-}
-let key = crypto.createPublicKey(key_bytes);
-if (!key) {
-    throw 'Failed creating key';
-}
-
-// Ensure the key is 4096 bits (outputs 512-byte chunks).
 const KEY_SIZE = 512;
 
-let test_data = encrypt([1, 2, 3]);
-if (test_data.length != KEY_SIZE) {
-    throw `Key is not 4096-bit, encrypted output chunk size returned was ${test_data.length}`;
-}
-
-// Prepare request
-let encrypted_request = encrypt(request);
-let post_data = JSON.stringify({
-    payload: [...encrypted_request],
-});
-// Send request to server
-let req = http.request({
-    host: public_mirror_host,
-    port: public_mirror_port,
-    timeout: 120000,
-    path: '/encrypted-request',
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(post_data)
+function sendRequest(public_mirror_host, public_mirror_port, key_file, request) {
+    // Load key
+    let key_bytes = fs.readFileSync(key_file)
+    if (!key_bytes) {
+        throw 'Failed loading key';
     }
-}, (response) => {
-    let buf = []
-    response.on('data', (chunk) => {
-        buf.push(chunk)
-    });
+    let key = crypto.createPublicKey(key_bytes);
+    if (!key) {
+        throw 'Failed creating key';
+    }
 
-    response.on('end', () => {
-        if (response.statusCode == 200) {
-            let result = decrypt(Buffer.concat(buf)).toString();
-            console.log(result);
-        } else {
-            console.log(`Http error, status: ${response.statusCode}: ${buf}`)
+
+    // Ensure the key is 4096 bits (outputs 512-byte chunks).
+    let test_data = encrypt(key, [1, 2, 3]);
+    if (test_data.length != KEY_SIZE) {
+        throw `Key is not 4096-bit, encrypted output chunk size returned was ${test_data.length}`;
+    }
+
+    // Prepare request
+    let encrypted_request = encrypt(key, request);
+    let post_data = JSON.stringify({
+        payload: [...encrypted_request],
+    });
+    // Send request to server
+    let req = http.request({
+        host: public_mirror_host,
+        port: public_mirror_port,
+        timeout: 120000,
+        path: '/encrypted-request',
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(post_data)
         }
-    });
+    }, (response) => {
+        let buf = []
+        response.on('data', (chunk) => {
+            buf.push(chunk)
+        });
 
-    response.on('error', (error) => {
-        console.log('error occured while reading response:', error);
-    })
+        response.on('end', () => {
+            if (response.statusCode == 200) {
+                let result = decrypt(Buffer.concat(buf)).toString();
+                console.log(result);
+            } else {
+                console.log(`Http error, status: ${response.statusCode}: ${buf}`)
+            }
+        });
+
+        response.on('error', (error) => {
+            console.log('error occured while reading response:', error);
+        })
+    }
+    )
+    req.write(post_data)
+    req.end()
 }
-)
-req.write(post_data)
-req.end()
 
 // Crypto utilities
-function encrypt(buf) {
+function encrypt(key, buf) {
     let res = [];
 
     // Each encrypted chunk must be no longer than the length of the public modulus minus padding size.
@@ -119,3 +108,21 @@ function decrypt(buf) {
 function sign(buf) {
     return crypto.sign(null, Buffer.from(buf), {key, passphrase: ''})
 }
+
+exports.sendRequest = sendRequest;
+
+// Command line parsing
+if (process.argv.length != 6) {
+    console.log(`Usage: node example-client.js <public mirror host> <public mirror port> <key file> <request>`);
+    console.log(`For example: node example-client.js 127.0.0.1 9091 mirror-client.pem '{"GetBlock": {"block": 0}}'`);
+    console.log('To generate keys please run the generate-rsa-keypair binary. See README.md for more details')
+    return;
+}
+
+let public_mirror_host = process.argv[2];
+let public_mirror_port = process.argv[3];
+let key_file = process.argv[4];
+let request = process.argv[5];
+
+sendRequest(public_mirror_host, public_mirror_port, key_file, request);
+
