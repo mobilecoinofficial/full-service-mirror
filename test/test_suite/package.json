@@ -1,14 +1,14 @@
 {
-  "name": "test",
+  "name": "test_suite",
   "version": "1.0.0",
-  "description": "mirror testing",
+  "description": "run tests for lvn",
   "main": "test_script.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "Mobile Coin",
+  "author": "",
   "license": "ISC",
   "dependencies": {
-    "example-client": "file:.."
+    "test_lib": "file:../test_lib"
   }
 }

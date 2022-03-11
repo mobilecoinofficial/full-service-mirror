@@ -5,7 +5,7 @@ if (NODE_MAJOR_VERSION < 12) {
 }
 
 // Imports
-const client = require('send-request-encrypted');
+const client = require('test_lib');
 const full_service_path = "/wallet";
 const public_mirror_path = "/encrypted-request";
 const wait_time_ms = 10000;
@@ -401,7 +401,7 @@ if (process.argv.length != 8) {
     console.log(`Usage: node example-client.js <public mirror host> <public mirror port> <key file> <mnemonic>`);
     console.log(`For example: node example-client.js 127.0.0.1 9091 mirror-client.pem '<mnemonic>'`);
     console.log('To generate keys please run the generate-rsa-keypair binary. See README.md for more details')
-    return;
+    throw "invalid arguments";
 }
 
 let public_mirror_host = process.argv[2];
