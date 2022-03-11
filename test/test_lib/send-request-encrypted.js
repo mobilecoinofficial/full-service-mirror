@@ -24,10 +24,8 @@ function sendRequestPromise(params, postData, processSuccessfulResponse) {
             response.on('end', function() {
                 if (response.statusCode == 200) {
                 try {
-                    console.log("200");
                     result = processSuccessfulResponse(buf);
                 } catch(error) {
-                    console.log("400")
                     reject(`Failed to process a successful request: ${error}`);
                 }
                 resolve(result);
@@ -37,14 +35,12 @@ function sendRequestPromise(params, postData, processSuccessfulResponse) {
             });
             //reject on response error
             response.on('error', (error) => {
-                console.log('error occured while reading response:', error);
                 reject(`Error reading response: ${error}`);
             });
             
         });
         // reject on request error
         req.on('error', function(error) {
-            console.log('error occured while sending request:', error);
             reject(`Error sending request: ${error}`);
         });        
         req.write(postData);
