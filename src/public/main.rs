@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2021 MobileCoin Inc.
+// Copyright (c) 2018-2022 MobileCoin Inc.
 
 //! The public side of wallet-service-mirror.
 //! This program opens two listening ports:
@@ -27,10 +27,8 @@ use rocket::{
     http::Status,
     post,
     response::Responder,
-    routes, Request, Response,
+    routes, Data, Request, Response,
 };
-use rocket_contrib::json::Json;
-use serde::Deserialize;
 use std::{io::Read, sync::Arc};
 use structopt::StructOpt;
 
@@ -118,7 +116,7 @@ fn unencrypted_request(
         return Err(msg.into());
     }
 
-    log::debug!(state.logger, "Enqueueing UnencryptedRequest({})", &request,);
+    log::debug!(state.logger, "Enqueueing UnencryptedRequest({})", &request);
 
     let mut unencrypted_request = UnencryptedRequest::new();
     unencrypted_request.set_json_request(request.clone());
@@ -157,18 +155,25 @@ fn unencrypted_request(
     Ok(response.get_json_response().to_string())
 }
 
-#[derive(Deserialize)]
-struct JsonEncryptedRequest {
-    payload: Vec<u8>,
-}
+#[post(
+    "/encrypted-request",
+    format = "application/octet-stream",
+    data = "<data>"
+)]
+fn encrypted_request(state: rocket::State<State>, data: Data) -> Result<Vec<u8>, BadRequest> {
+    let mut payload = Vec::new();
+    if let Err(err) = data.open().read_to_end(&mut payload) {
+        let msg = format!(
+            "Could not read request data for unencrypted request: {}",
+            err
+        );
+        log::error!(state.logger, "{}", msg);
+        return Err(msg.into());
+    }
+    let payload_len = payload.len();
 
-#[post("/encrypted-request", format = "json", data = "<request>")]
-fn encrypted_request(
-    state: rocket::State<State>,
-    request: Json<JsonEncryptedRequest>,
-) -> Result<Vec<u8>, BadRequest> {
     let mut encrypted_request = EncryptedRequest::new();
-    encrypted_request.set_payload(request.payload.clone());
+    encrypted_request.set_payload(payload);
 
     let mut query_request = QueryRequest::new();
     query_request.set_encrypted_request(encrypted_request);
@@ -176,7 +181,7 @@ fn encrypted_request(
     log::debug!(
         state.logger,
         "Enqueueing EncryptedRequest({} bytes)",
-        request.payload.len(),
+        payload_len,
     );
     let query = state.query_manager.enqueue_query(query_request);
     let query_response = query.wait()?;
@@ -185,7 +190,7 @@ fn encrypted_request(
         log::error!(
             state.logger,
             "EncryptedRequest({} bytes) failed: {}",
-            request.payload.len(),
+            payload_len,
             query_response.get_error()
         );
         return Err(query_response.get_error().into());
@@ -194,7 +199,7 @@ fn encrypted_request(
         log::error!(
             state.logger,
             "EncryptedRequest({} bytes) returned incorrect response type",
-            request.payload.len(),
+            payload_len,
         );
         return Err("Incorrect response type received".into());
     }
@@ -202,7 +207,7 @@ fn encrypted_request(
     log::info!(
         state.logger,
         "EncryptedRequest({} bytes) completed successfully",
-        request.payload.len(),
+        payload_len,
     );
 
     let response = query_response.get_encrypted_response();
