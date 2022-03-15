@@ -36,10 +36,12 @@ WORKDIR /linux-v$mirversion-testnet
 
 # Copy the useful test scripts into the docker image.
 COPY ./run.sh .
-COPY ./test_script.js .
-COPY ./package.json .
-COPY ./package-lock.json .
-ADD ./node_modules .
-
+COPY ./test_lib ./test_lib
+COPY ./test_suite ./test_suite
+WORKDIR /linux-v$mirversion-testnet/test_lib
+RUN npm install
+WORKDIR /linux-v$mirversion-testnet/test_suite
+RUN npm install
+WORKDIR /linux-v$mirversion-testnet
 # Run the script
 ENTRYPOINT ["/bin/bash", "./run.sh"]

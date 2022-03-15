@@ -57,12 +57,12 @@ response=$(node example-client.js 127.0.0.1 9091 mirror-client.pem "{
 echo "node returned: $response"    
 if [ "$response" != 'Http error, status: 400: Unsupported request' ] 
 then
-echo "$method return $response which was not Http error, status: 400: Unsupported request"
+echo "$method return $response which was not 'Http error, status: 400: Unsupported request'"
 exit 42
 fi
 done
 
-response=$(node test_script.js 127.0.0.1 9091 127.0.0.1 9090 mirror-client.pem "${mnemonic}")
+response=$(node ./test_suite/test_script.js 127.0.0.1 9091 127.0.0.1 9090 mirror-client.pem "${mnemonic}")
 echo "Test result: $response"    
 
 
