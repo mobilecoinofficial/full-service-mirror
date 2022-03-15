@@ -3,8 +3,6 @@ RUN apt-get update && apt-get -yy install curl openssl
 
 # Install NVM
 SHELL ["/bin/bash", "-c"]
-# RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.2/install.sh | bash
-# RUN source /root/.bashrc && nvm install 12.14.1
 # nvm environment variables
 ENV NVM_DIR /usr/local/nvm
 ENV NODE_VERSION 16.14.0
@@ -43,5 +41,6 @@ RUN npm install
 WORKDIR /linux-v$mirversion-testnet/test_suite
 RUN npm install
 WORKDIR /linux-v$mirversion-testnet
+
 # Run the script
 ENTRYPOINT ["/bin/bash", "./run.sh"]

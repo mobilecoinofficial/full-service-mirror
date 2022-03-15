@@ -54,7 +54,6 @@ response=$(node example-client.js 127.0.0.1 9091 mirror-client.pem "{
     \"api_version\": \"2\", 
     \"id\": 1
     }")
-echo "node returned: $response"    
 if [ "$response" != 'Http error, status: 400: Unsupported request' ] 
 then
 echo "$method return $response which was not 'Http error, status: 400: Unsupported request'"
