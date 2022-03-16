@@ -5,7 +5,7 @@ if (NODE_MAJOR_VERSION < 12) {
 }
 
 // Imports
-const client = require('test_lib');
+const client = require('../test_lib/send-request-encrypted');
 const full_service_path = "/wallet";
 const public_mirror_path = "/encrypted-request";
 const wait_time_ms = 10000;
