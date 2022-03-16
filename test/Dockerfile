@@ -1,4 +1,7 @@
 FROM ubuntu:18.04
+
+ENV mirversion="1.5.0"
+
 RUN apt-get update && apt-get -yy install curl openssl
 
 # Install NVM
@@ -26,10 +29,9 @@ RUN node -v
 RUN npm -v
 SHELL ["/bin/sh", "-c"]
 
-# Download and install the full service package
-ENV mirversion="1.5.0"
-RUN curl -L -o full-service.tar.gz https://github.com/mobilecoinofficial/full-service-mirror/releases/download/v$mirversion/linux-v$mirversion-testnet.tar.gz
-RUN tar xf full-service.tar.gz && rm full-service.tar.gz
+# Download and install the full service mirror package
+RUN curl -L -o full-service-mirror.tar.gz https://github.com/mobilecoinofficial/full-service-mirror/releases/download/v$mirversion/linux-v$mirversion-testnet.tar.gz
+RUN tar xf full-service-mirror.tar.gz && rm full-service-mirror.tar.gz
 WORKDIR /linux-v$mirversion-testnet
 
 # Copy the useful test scripts into the docker image.
