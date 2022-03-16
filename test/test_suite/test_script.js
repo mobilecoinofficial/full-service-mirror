@@ -395,11 +395,11 @@ async function testValidateConfirmations(public_mirror_host, public_mirror_port,
         }
     }
 }
-console.log("test v2")
+console.log("Starting test script")
 // Command line parsing
 if (process.argv.length != 8) {
-    console.log(`Usage: node example-client.js <public mirror host> <public mirror port> <key file> <mnemonic>`);
-    console.log(`For example: node example-client.js 127.0.0.1 9091 mirror-client.pem '<mnemonic>'`);
+    console.log(`Usage: node test_script.js <public mirror host> <public mirror port> <full_service_host> <full_service_port> <key file> <mnemonic>`);
+    console.log(`For example: node test_script.js 127.0.0.1 9091 127.0.0.1 5554 mirror-client.pem '<mnemonic>'`);
     console.log('To generate keys please run the generate-rsa-keypair binary. See README.md for more details')
     throw "invalid arguments";
 }
