@@ -1,7 +1,9 @@
-name: full-service-mirror-build-release
+name: fsm-build
 
 env:
   DOCKERHUB_REPO: mobilecoin/full-service-mirror
+  # CHART_RELEASE_NAME: full-service-mirror
+  # CHART_PATH: ./chart
   SGX_MODE: HW
   IAS_MODE: PROD
   RUST_BACKTRACE: full
@@ -11,10 +13,9 @@ env:
 on:
   push:
     branches:
-      - 'main'
       - 'develop'
-      - 'release/*'
       - 'feature/*'
+      - 'hotfix/*'
     tags:
       - 'v*'
 
@@ -40,7 +41,7 @@ jobs:
         with:
           submodules: recursive
 
-      # CACHE_VERSION is 'date --iso-8601=minutes' and is used to invalidate cache if needed
+      # CACHE_VERSION secret is 'date --iso-8601=minutes' and is used to invalidate cache if needed
       - name: Cache Build Binaries
         id: artifact_cache
         uses: actions/cache@v2
@@ -84,33 +85,26 @@ jobs:
       - name: Copy binaries to cache folder
         if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
-          mkdir -p build_artifacts/${{ matrix.network }}/bin
+          mkdir -pv build_artifacts/${{ matrix.network }}/bin
           cp /var/tmp/*.css build_artifacts/${{ matrix.network }}
           cp -R create-release/package-${{ matrix.network }}/* build_artifacts/${{ matrix.network }}
           cp full-service/target/release/full-service build_artifacts/${{ matrix.network }}/bin/
           cp full-service/target/release/mc-validator-service build_artifacts/${{ matrix.network }}/bin/
           cp target/release/wallet-service-mirror-private build_artifacts/${{ matrix.network }}/bin/
           cp target/release/wallet-service-mirror-public build_artifacts/${{ matrix.network }}/bin/
+          cp target/release/generate-rsa-keypair build_artifacts/${{ matrix.network }}/bin/
 
       # Create and Upload an Artifact on Push and Not a Tag
       - name: Create Artifact
-        if: startsWith(github.ref, 'refs/heads/')
         run: |
-          mkdir -p artifact
+          mkdir -pv artifact
           cd artifact && tar -czvf ${{ github.sha }}-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
 
       - name: Upload Artifact
-        if: startsWith(github.ref, 'refs/heads/')
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: full-service-mirror_${{ matrix.network }}
           path: artifact/${{ github.sha }}-${{ matrix.network }}.tar.gz
-
-      - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          mkdir -p release
-          cd release && tar -czvf ${{ github.ref_name }}-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
 
       # Does the tag have the "pre" key word in it? Will mark it as prerelease
       - name: Is Prerelease
@@ -119,17 +113,60 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           if [[ "${GITHUB_REF}" =~ pre ]]; then
-            echo ::set-output name=value::true
+            echo "::set-output name=value::true"
           else
-            echo ::set-output name=value::false
+            echo "::set-output name=value::false"
           fi
+
+      # Only for Tag on Main
+      - name: Get Current Pre-Release
+        if: startsWith(github.ref, 'refs/tags/v') && steps.prerelease.outputs.value == 'false'
+        id: current_release
+        uses: joutvhu/get-release@v1
+        with:
+          debug: true
+          latest: true
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Only for Tag on Main
+      - name: Download Latest Pre-Release
+        if: startsWith(github.ref, 'refs/tags/v') && steps.prerelease.outputs.value == 'false'
+        uses: duhow/download-github-release-assets@v1
+        with:
+          tag: ${{ steps.current_release.outputs.tag_name }}
+          files: |
+            ${{ steps.current_release.outputs.tag_name }}-${{ matrix.network }}.tar.gz
+          target: /var/tmp/${{ steps.current_release.outputs.tag_name }}-${{ matrix.network }}.tar.gz
+
+      # Only for Tag on Main
+      - name: Extract Release
+        if: startsWith(github.ref, 'refs/tags/v') && steps.prerelease.outputs.value == 'false'
+        run: |
+          rm -rfv build_artifacts/${{ matrix.network }}
+          mkdir -pv build_artifacts/${{ matrix.network }}
+          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-${{ matrix.network }}.tar.gz -C build_artifacts/${{ matrix.network }}
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          mkdir -pv release
+          cd release && tar -czvf ${{ github.ref_name }}-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
+
+      - name: Generate MD5
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          cd release && md5sum ${{ github.ref_name }}-${{ matrix.network }}.tar.gz > ${{ github.ref_name }}-${{ matrix.network }}.md5
 
       - name: Upload Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v1
         with:
           prerelease: ${{ steps.prerelease.outputs.value }}
-          files: release/${{ github.ref_name }}-${{ matrix.network }}.tar.gz
+          files: |
+            release/${{ github.ref_name }}-${{ matrix.network }}.tar.gz
+            release/${{ github.ref_name }}-${{ matrix.network }}.md5
 
   docker:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -142,8 +179,6 @@ jobs:
             network: testnet
           - namespace: prod
             network: mainnet
-    outputs:
-      tags: ${{ steps.meta.outputs.tags }}
 
     steps:
       - name: Checkout with submodules
@@ -173,7 +208,7 @@ jobs:
       - name: Extract Release
         if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
-          mkdir -p build_artifacts/${{ matrix.network }}
+          mkdir -pv build_artifacts/${{ matrix.network }}
           tar xzvf /var/tmp/${{ github.ref_name }}-${{ matrix.network }}.tar.gz -C build_artifacts/${{ matrix.network }}
 
       - name: Generate Docker Tags
@@ -213,28 +248,3 @@ jobs:
           push: true
           labels: ${{ steps.meta.outputs.labels }}
           tags: ${{ steps.meta.outputs.tags }}
-
-  # Only create a new tag if push to develop(prerelease) or main(release)
-  # Will automatically bump "#patch" by default
-  # Use "#major", "#minor", "#patch". "#none" in commit message to adjust bump.
-  #
-  # Requires mobilecoin-ci user R/W access and ACTIONS_TOKEN
-  tag:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: '0'
-      - name: Github Tag Bump
-        uses: anothrNick/github-tag-action@1.36.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.ACTIONS_TOKEN }}
-          RELEASE_BRANCHES: main
-          PRERELEASE_SUFFIX: pre
-          WITH_V: 'true'
-          DEFAULT_BUMP: patch
