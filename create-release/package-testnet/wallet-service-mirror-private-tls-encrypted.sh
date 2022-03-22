@@ -17,7 +17,7 @@ fi
 mkdir -p ./validator-dbs
 ./bin/mc-validator-service \
     --ledger-db ./validator-vbs/ledger-db/ \
-    --peer mc://node1.test.mobilecoin.com/ \tmp
+    --peer mc://node1.test.mobilecoin.com/ \
     --peer mc://node2.test.mobilecoin.com/ \
     --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
     --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
