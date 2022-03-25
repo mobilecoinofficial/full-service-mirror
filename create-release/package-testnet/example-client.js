@@ -42,7 +42,6 @@ if (test_data.length != KEY_SIZE) {
 
 // Prepare request
 let encrypted_request = encrypt(request);
-
 // Send request to server
 let req = http.request({
     host: public_mirror_host,
@@ -115,5 +114,5 @@ function decrypt(buf) {
 }
 
 function sign(buf) {
-    return crypto.sign(null, Buffer.from(buf), {key, passphrase: ''})
+    return crypto.sign(null, Buffer.from(buf), { key, passphrase: '' })
 }
