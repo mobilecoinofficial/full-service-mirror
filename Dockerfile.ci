@@ -1,0 +1,52 @@
+# syntax=docker/dockerfile:1.2
+
+# Runtime image for the wallet service mirror (public/private) nodes.
+# Binaries included:
+#   full-service, mc-validator-service, full-service-mirror-public, full-service-mirror-private 
+
+# This build requires BuildKit and is used from within Github Actions
+
+FROM ubuntu:focal-20211006
+
+# Need to pass in testnet/mainnet to grab the build artifacts
+ARG NETWORK
+
+RUN addgroup --system --gid 1000 app \
+  && adduser --system --ingroup app --uid 1000 app \
+  && mkdir /data \
+  && chown app:app /data
+
+RUN apt-get update \
+  && apt-get upgrade -y \
+  && apt-get install -y ca-certificates \
+  && apt-get clean \
+  && rm -r /var/lib/apt/lists \
+  && mkdir -p /usr/share/grpc \
+  && ln -s /etc/ssl/certs/ca-certificates.crt /usr/share/grpc/roots.pem
+
+COPY build_artifacts/${NETWORK}/*.css /usr/local/bin/
+COPY build_artifacts/${NETWORK}/bin/full-service /usr/local/bin/full-service
+COPY build_artifacts/${NETWORK}/bin/mc-validator-service /usr/local/bin/mc-validator-service
+COPY build_artifacts/${NETWORK}/bin/wallet-service-mirror-private /usr/local/bin/wallet-service-mirror-private
+COPY build_artifacts/${NETWORK}/bin/wallet-service-mirror-public /usr/local/bin/wallet-service-mirror-public
+
+USER app
+VOLUME /data
+
+ENV RUST_BACKTRACE="1"
+ENV RUST_LOG=info,rustls=warn,hyper=warn,tokio_reactor=warn,mio=warn,want=warn,rusoto_core=error,h2=error,reqwest=error,rocket=error,<unknown>=error
+ENV RUST_LOG_STYLE="never"
+ENV INGEST_ENCLAVE_CSS=/usr/local/bin/ingest-enclave.css
+ENV CONSENSUS_ENCLAVE_CSS=/usr/local/bin/consensus-enclave.css
+
+# Default ports
+# full-service grpc
+EXPOSE 9090
+# mc-validator-service grpc
+EXPOSE 5554
+# full-service-mirror-public grpc
+EXPOSE 10080
+# full-service-mirror-public http(s) client
+EXPOSE 9091
+
+CMD [ "bash"]
