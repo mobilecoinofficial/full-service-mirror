@@ -1,4 +1,3 @@
-{{- if .Values.mirrorPublic.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -10,17 +9,16 @@ spec:
   type: ClusterIP
   publishNotReadyAddresses: true
   ports:
-    - port: 9091
+    - port: {{ .Values.mirrorPublic.httpPort }}
       targetPort: http
       protocol: TCP
       name: http
-    - port: 10080
+    - port: {{ .Values.mirrorPublic.grpcPort }}
       targetPort: grpc
       name: grpc
-    - port: 10443
+    - port: {{ .Values.mirrorPublic.grpcTlsPort }}
       targetPort: grpc-tls
       name: grpc-tls
   selector:
     {{- include "chart.selectorLabels" . | nindent 4 }}
     app: mirror-service-public
-{{- end }}

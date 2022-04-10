@@ -28,7 +28,7 @@ spec:
         runAsGroup: 1000
       containers:
       - name: mirror-service-private
-        image: "{{ .Values.mirrorPrivate.image.repository }}:{{ .Values.mirrorPrivate.image.tag }}"
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         imagePullPolicy: {{ .Values.mirrorPrivate.imagePullPolicy }}
         args:
           - /usr/local/bin/wallet-service-mirror-private

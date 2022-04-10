@@ -5,6 +5,7 @@ metadata:
   name: {{ include "chart.fullname" . }}-full-service
   labels:
     {{- include "chart.labels" . | nindent 4 }}
+    app: full-service
 spec:
   replicas: {{ .Values.fullService.replicaCount }}
   selector:
@@ -35,17 +36,31 @@ spec:
             drop:
             - all
           readOnlyRootFilesystem: true
-        image: "{{ .Values.fullService.image.repository }}:{{ .Values.fullService.image.tag }}"
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         imagePullPolicy: {{ .Values.fullService.imagePullPolicy }}
         args:
           {{- toYaml .Values.fullService.args | nindent 10 }}
+          - --listen-host=0.0.0.0
+          - --fog-ingest-enclave-css=/usr/local/bin/ingest-enclave.css
+          {{- if eq .Values.ledgerValidator.enabled true }}
+            {{- if eq .Values.mirrorServiceTLS true }}
+          - --validator=validator://{{ include "chart.fullname" . }}-ledger-validator:{{ .Values.ledgerValidator.listenPort }}/?ca-bundle=/certs/ca.crt
+            {{- else }}
+          - --validator=insecure-validator://{{ include "chart.fullname" . }}-ledger-validator:{{ .Values.ledgerValidator.listenPort }}/  
+            {{- end }}
+          {{- end }}
         ports:
         - name: full-service
-          containerPort: 9090
+          containerPort: {{ .Values.fullService.listenPort }}
           protocol: TCP
         volumeMounts:
         - name: data
           mountPath: /data
+        {{- if eq .Values.mirrorServiceTLS true }}
+        - name: tls-cert
+          mountPath: /certs
+          readOnly: true
+        {{- end }}
         resources:
           {{- toYaml .Values.fullService.resources | nindent 12 }}
       nodeSelector:
@@ -54,10 +69,15 @@ spec:
         {{- toYaml .Values.fullService.affinity | nindent 8 }}
       tolerations:
         {{- toYaml .Values.fullService.tolerations | nindent 8 }}
-      {{- if eq .Values.fullService.persistence.enabled false }}
       volumes:
+      {{- if eq .Values.fullService.persistence.enabled false }}
       - name: data
         emptyDir: {}
+      {{- end }}
+      {{- if eq .Values.mirrorServiceTLS true }}
+        - name: tls-cert
+          secret:
+            secretName: {{ include "chart.fullname" .}}-lvn-cert-tls
       {{- end }}
   {{- if .Values.fullService.persistence.enabled }}
   volumeClaimTemplates:

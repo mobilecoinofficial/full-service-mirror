@@ -2,8 +2,6 @@ name: fsm-build
 
 env:
   DOCKERHUB_REPO: mobilecoin/full-service-mirror
-  # CHART_RELEASE_NAME: full-service-mirror
-  # CHART_PATH: ./chart
   SGX_MODE: HW
   IAS_MODE: PROD
   RUST_BACKTRACE: full
@@ -21,12 +19,14 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, large]
     # Needs write permission for publishing release
     permissions:
       contents: write
     container:
-      image: mobilecoin/rust-sgx-base:0.0.3
+      image: mobilecoin/rust-sgx-base:0.0.4
+    outputs:
+      prerelease: ${{ steps.prerelease.outputs.value }}
     strategy:
       matrix:
         include:
@@ -172,6 +172,9 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     needs: build
+    outputs:
+      prerelease: ${{ needs.build.outputs.prerelease }}
+      dockerhub_repo: ${{ env.DOCKERHUB_REPO }}
     strategy:
       matrix:
         include:
@@ -220,7 +223,7 @@ jobs:
             latest=false
             suffix=-${{ matrix.network }}
           tags: |
-            type=semver,pattern=v{{version}},priority=20
+            type=semver,pattern={{raw}},priority=20
             type=sha,priority=10
 
       - name: Setup Docker Buildx
@@ -248,3 +251,17 @@ jobs:
           push: true
           labels: ${{ steps.meta.outputs.labels }}
           tags: ${{ steps.meta.outputs.tags }}
+
+  deploy:
+    needs: [docker]
+    uses: ./.github/workflows/deploy.yaml
+    with:
+      prerelease: ${{ needs.docker.outputs.prerelease }}
+      dockerhub_repo: ${{ needs.docker.outputs.dockerhub_repo }}
+    secrets:
+      RANCHER_URL: ${{ secrets.RANCHER_URL }}
+      RANCHER_TOKEN: ${{ secrets.RANCHER_TOKEN }}
+      STAGING_CLUSTER: ${{ secrets.STAGING_CLUSTER }}
+      PRODUCTION_CLUSTER: ${{ secrets.PRODUCTION_CLUSTER }}
+      TESTNET_VALUES: ${{ secrets.TESTNET_VALUES }}
+      MAINNET_VALUES: ${{ secrets.MAINNET_VALUES }}

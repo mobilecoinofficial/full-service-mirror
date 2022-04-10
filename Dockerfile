@@ -51,13 +51,15 @@ ARG SGX_MODE=HW
 ARG IAS_MODE=PROD
 ARG RUSTFLAGS='-C target-cpu=penryn'
 
-# Build full-service-mirror
-RUN  --mount=type=cache,target=/root/.cargo/git \
-     --mount=type=cache,target=/root/.cargo/registry \
-     --mount=type=cache,target=/app/target \
-     cargo build --release -p mc-wallet-service-mirror ${BUILD_OPTS} \
+# Build full-service, validator, & mirror services
+RUN --mount=type=cache,target=/root/.cargo/git \
+    --mount=type=cache,target=/root/.cargo/registry \
+    --mount=type=cache,target=/app/target \
+    cargo build --release --manifest-path full-service/Cargo.toml -p mc-full-service -p mc-validator-service\
+  && cp full-service/target/release/full-service /usr/local/bin \
+  && cp full-service/target/release/mc-validator-service /usr/local/bin \
+  && cargo build --release -p mc-wallet-service-mirror ${BUILD_OPTS} \
   && cp /app/target/release/wallet-service-mirror* /usr/local/bin/
-
 
 # This is the runtime container.
 # Adding/updating OS will not affect the ability to verify the build environment.
@@ -76,6 +78,8 @@ RUN  apt-get update \
   && mkdir -p /usr/share/grpc \
   && ln -s /etc/ssl/certs/ca-certificates.crt /usr/share/grpc/roots.pem
 
+COPY --from=builder /usr/local/bin/full-service /usr/local/bin/full-service
+COPY --from=builder /usr/local/bin/mc-validator-service /usr/local/bin/mc-validator-service
 COPY --from=builder /usr/local/bin/wallet-service-mirror-private /usr/local/bin/wallet-service-mirror-private
 COPY --from=builder /usr/local/bin/wallet-service-mirror-public /usr/local/bin/wallet-service-mirror-public
 COPY --from=builder /app/*.css /usr/local/bin/
@@ -87,4 +91,3 @@ EXPOSE 9090
 ENV RUST_LOG=info,rustls=warn,hyper=warn,tokio_reactor=warn,mio=warn,want=warn,rusoto_core=error,h2=error,reqwest=error,rocket=error,<unknown>=error
 ENV INGEST_ENCLAVE_CSS=/usr/local/bin/ingest-enclave.css
 ENV CONSENSUS_ENCLAVE_CSS=/usr/local/bin/consensus-enclave.css
-

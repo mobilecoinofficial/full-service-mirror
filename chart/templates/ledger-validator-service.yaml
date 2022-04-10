@@ -1,0 +1,20 @@
+{{- if .Values.ledgerValidator.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "chart.fullname" . }}-ledger-validator
+  labels:
+    app: ledger-validator
+    {{- include "chart.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  publishNotReadyAddresses: true
+  ports:
+    - port: {{ .Values.ledgerValidator.listenPort }}
+      targetPort: validator
+      protocol: TCP
+      name: validator
+  selector:
+    {{- include "chart.selectorLabels" . | nindent 4 }}
+    app: ledger-validator
+{{- end }}

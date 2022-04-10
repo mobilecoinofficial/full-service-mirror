@@ -1,0 +1,18 @@
+mirrorServiceTLS: true
+image:
+  tag: '%TAG%' # Token used in rancher_deploy.sh
+
+ledgerValidator:
+  args:
+    - /usr/local/bin/mc-validator-service
+    - --ledger-db=/data/ledger.db
+    - --peer=mc://node1.test.mobilecoin.com/
+    - --peer=mc://node2.test.mobilecoin.com/
+    - --tx-source-url=https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/
+    - --tx-source-url=https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/
+
+fullService:
+  args:
+    - /usr/local/bin/full-service
+    - --wallet-db=/data/wallet.db
+    - --ledger-db=/data/ledger.db
