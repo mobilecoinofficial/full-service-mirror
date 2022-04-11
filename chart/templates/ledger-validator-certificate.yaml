@@ -6,6 +6,7 @@ metadata:
 spec:
   dnsNames:
     - {{ include "chart.fullname" . }}-ledger-validator
+    - {{ include "chart.fullname" . }}-ledger-validator.{{ .Release.Namespace }}
     - {{ include "chart.fullname" . }}-ledger-validator.{{ .Release.Namespace }}.svc.cluster.local
   secretName: {{ include "chart.fullname" . }}-lvn-cert-tls
   issuerRef:

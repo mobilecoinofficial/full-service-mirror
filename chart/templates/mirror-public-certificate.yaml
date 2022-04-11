@@ -6,6 +6,7 @@ metadata:
 spec:
   dnsNames:
     - {{ include "chart.fullname" . }}-public
+    - {{ include "chart.fullname" . }}-public.{{ .Release.Namespace }}
     - {{ include "chart.fullname" . }}-public.{{ .Release.Namespace }}.svc.cluster.local
   secretName: {{ include "chart.fullname" . }}-public-cert-tls
   issuerRef:

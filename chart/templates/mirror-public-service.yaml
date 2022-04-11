@@ -15,9 +15,11 @@ spec:
       name: http
     - port: {{ .Values.mirrorPublic.grpcPort }}
       targetPort: grpc
+      protocol: TCP
       name: grpc
     - port: {{ .Values.mirrorPublic.grpcTlsPort }}
       targetPort: grpc-tls
+      protocol: TCP
       name: grpc-tls
   selector:
     {{- include "chart.selectorLabels" . | nindent 4 }}
