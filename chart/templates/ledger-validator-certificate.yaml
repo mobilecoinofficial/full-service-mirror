@@ -1,0 +1,15 @@
+{{- if eq .Values.mirrorServiceTLS true }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "chart.fullname" . }}-lvn-cert
+spec:
+  dnsNames:
+    - {{ include "chart.fullname" . }}-ledger-validator
+    - {{ include "chart.fullname" . }}-ledger-validator.{{ .Release.Namespace }}
+    - {{ include "chart.fullname" . }}-ledger-validator.{{ .Release.Namespace }}.svc.cluster.local
+  secretName: {{ include "chart.fullname" . }}-lvn-cert-tls
+  issuerRef:
+    name: internal-ca-issuer
+    kind: ClusterIssuer
+{{- end }}

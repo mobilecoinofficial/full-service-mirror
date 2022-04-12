@@ -10,7 +10,7 @@ spec:
   type: ClusterIP
   publishNotReadyAddresses: true
   ports:
-    - port: 9090
+    - port: {{ .Values.fullService.listenPort }}
       targetPort: full-service
       protocol: TCP
       name: full-service

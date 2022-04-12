@@ -1,0 +1,93 @@
+name: fsm-deploy
+
+env:
+  CHART_RELEASE_NAME: full-service-mirror
+  CHART_PATH: ./chart
+
+on:
+  workflow_call:
+    inputs:
+      prerelease:
+        required: true
+        type: string
+      dockerhub_repo:
+        required: true
+        type: string
+    secrets:
+      RANCHER_URL:
+        required: true
+      RANCHER_TOKEN:
+        required: true
+      STAGING_CLUSTER:
+        required: true
+      PRODUCTION_CLUSTER:
+        required: true
+      TESTNET_VALUES:
+        required: true
+      MAINNET_VALUES:
+        required: true
+
+jobs:
+  deploy-staging:
+    if: ${{ inputs.prerelease == 'true'}}
+    strategy:
+      matrix:
+        include:
+          - network: testnet
+            namespace: fsm-staging-testnet
+            values: TESTNET_VALUES
+          - network: mainnet
+            namespace: fsm-staging-mainnet
+            values: MAINNET_VALUES
+    runs-on: ubuntu-latest
+    container:
+      image: alpine/helm
+      options: --entrypoint /bin/sh
+    env:
+      RANCHER_URL: ${{ secrets.RANCHER_URL }}
+      RANCHER_TOKEN: ${{ secrets.RANCHER_TOKEN }}
+      RANCHER_CLUSTER: ${{ secrets.STAGING_CLUSTER }}
+      RANCHER_CLUSTER_NAMESPACE: ${{ matrix.namespace }}
+      VALUES: ${{ secrets[matrix.values] }}
+      TAGS: ${{ inputs.dockerhub_repo }}:${{ github.ref_name }}-${{ matrix.network }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Deploy
+        run: |
+          apk add --no-cache bash curl jq
+          .github/workflows/helpers/rancher_deploy.sh
+
+  deploy-production:
+    if: ${{ inputs.prerelease == 'false' }}
+    strategy:
+      matrix:
+        include:
+          - network: testnet
+            namespace: fsm-prod-testnet
+            values: TESTNET_VALUES
+          - network: mainnet
+            namespace: fsm-prod-mainnet
+            values: MAINNET_VALUES
+    runs-on: ubuntu-latest
+    container:
+      image: alpine/helm
+      options: --entrypoint /bin/sh
+    env:
+      RANCHER_URL: ${{ secrets.RANCHER_URL }}
+      RANCHER_TOKEN: ${{ secrets.RANCHER_TOKEN }}
+      RANCHER_CLUSTER: ${{ secrets.PRODUCTION_CLUSTER }}
+      RANCHER_CLUSTER_NAMESPACE: ${{ matrix.namespace }}
+      VALUES: ${{ secrets[matrix.values] }}
+      TAGS: ${{ inputs.dockerhub_repo }}:${{ github.ref_name }}-${{ matrix.network }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Deploy
+        run: |
+          apk add --no-cache bash curl jq
+          .github/workflows/helpers/rancher_deploy.sh

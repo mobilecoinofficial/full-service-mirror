@@ -8,22 +8,68 @@ imagePullSecrets:
 # Use Self Signed Cert for TLS between private and public service GRPC
 mirrorServiceTLS: false
 
-fullService:
+image:
+  repository: mobilecoin/full-service-mirror
+  tag: ''
+
+ledgerValidator:
   enabled: true
   replicaCount: 1
-  image:
-    repository: mobilecoin/full-service
-    tag: ''
+  listenPort: 5554
   imagePullPolicy: Always
   podAnnotations:
     fluentbit.io/include: 'true'
   args: []
   # Example args for testnet
+  # - /usr/local/bin/mc-validator-service
+  # - --ledger-db=/data/ledger.db
   # - --peer=mc://node1.test.mobilecoin.com/
   # - --peer=mc://node2.test.mobilecoin.com/
   # - --tx-source-url=https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/
   # - --tx-source-url=https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/
-  resources: {}
+
+  # Example args for mainnet
+  # - /usr/local/bin/mc-validator-service
+  # - --ledger-db=/data/ledger.db
+  # - --peer=mc://node1.prod.mobilecoinww.com/
+  # - --peer=mc://node2.prod.mobilecoinww.com/
+  # - --tx-source-url=https://ledger.mobilecoinww.com/node1.prod.mobilecoinww.com/
+  # - --tx-source-url=https://ledger.mobilecoinww.com/node2.prod.mobilecoinww.com/
+
+  nodeSelector: {}
+  tolerations: []
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - full-service
+          topologyKey: 'kubernetes.io/hostname'
+  persistence:
+    enabled: true
+    spec:
+      storageClassName: fast
+      accessModes:
+        - 'ReadWriteOnce'
+      resources:
+        requests:
+          storage: 128Gi
+
+fullService:
+  enabled: true
+  replicaCount: 1
+  listenPort: 9090
+  imagePullPolicy: Always
+  podAnnotations:
+    fluentbit.io/include: 'true'
+  args: []
+  # Example args for full-service
+  # - /usr/local/bin/full-service
+  # - --wallet-db=/data/wallet.db
+  # - --ledger-db=/data/ledger.db
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -38,11 +84,7 @@ fullService:
           storage: 128Gi
 
 mirrorPrivate:
-  enabled: true
   replicaCount: 1
-  image:
-    repository: mobilecoin/full-service-mirror
-    tag: ''
   imagePullPolicy: Always
   podAnnotations:
     fluentbit.io/include: 'true'
@@ -52,11 +94,10 @@ mirrorPrivate:
   affinity: {}
 
 mirrorPublic:
-  enabled: true
   replicaCount: 1
-  image:
-    repository: mobilecoin/full-service-mirror
-    tag: ''
+  httpPort: 9091
+  grpcPort: 10080
+  grpcTlsPort: 10443
   imagePullPolicy: Always
   podAnnotations:
     fluentbit.io/include: 'true'

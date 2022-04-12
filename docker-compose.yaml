@@ -1,19 +1,41 @@
-version: "3.8"
+version: '3.8'
 
 services:
+  validator_service:
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    volumes:
+      - validator-service:/data
+    tty: true
+    command:
+      - /usr/local/bin/mc-validator-service
+      - --ledger-db=/data/ledger.db
+      - --peer=mc://node1.test.mobilecoin.com/
+      - --peer=mc://node2.test.mobilecoin.com/
+      - --tx-source-url=https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/
+      - --tx-source-url=https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/
+      - --listen-uri=insecure-validator://0.0.0.0:5554/
+    expose:
+      - 5554
+    restart: always
 
   full_service:
     build:
-      context: ./full-service
+      context: ./
       dockerfile: ./Dockerfile
     volumes:
       - full-service:/data
     tty: true
     command:
-      - --peer=mc://node1.test.mobilecoin.com/
-      - --peer=mc://node2.test.mobilecoin.com/
-      - --tx-source-url=https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/
-      - --tx-source-url=https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/
+      - /usr/local/bin/full-service
+      - --listen-host=0.0.0.0
+      - --ledger-db=/data/ledger.db
+      - --wallet-db=/data/wallet.db
+      - --validator=insecure-validator://validator_service:5554/
+      - --fog-ingest-enclave-css=/usr/local/bin/ingest-enclave.css
+    depends_on:
+      - validator_service
     expose:
       - 9090
     restart: always
@@ -23,11 +45,12 @@ services:
       context: ./
       dockerfile: ./Dockerfile
     command:
-      - /usr/local/bin/wallet-service-mirror-private 
-      - --mirror-public-uri=insecure-wallet-service-mirror://wallet_service_mirror_public/ 
-      - --wallet-service-uri=http://full_service:9090/wallet 
+      - /usr/local/bin/wallet-service-mirror-private
+      - --mirror-public-uri=insecure-wallet-service-mirror://wallet_service_mirror_public/
+      - --wallet-service-uri=http://full_service:9090/wallet
     depends_on:
       - full_service
+      - wallet_service_mirror_public
     restart: always
 
   wallet_service_mirror_public:
@@ -35,14 +58,15 @@ services:
       context: ./
       dockerfile: ./Dockerfile
     command:
-      - /usr/local/bin/wallet-service-mirror-public 
+      - /usr/local/bin/wallet-service-mirror-public
       - --client-listen-uri=http://0.0.0.0:9091/
       - --mirror-listen-uri=insecure-wallet-service-mirror://0.0.0.0/
     ports:
-      - "9091:9091"
+      - '9091:9091'
     depends_on:
       - full_service
     restart: always
 
 volumes:
   full-service:
+  validator-service:

@@ -1,0 +1,85 @@
+{{- if .Values.ledgerValidator.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "chart.fullname" . }}-ledger-validator
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+    app: ledger-validator-node
+spec:
+  replicas: {{ .Values.ledgerValidator.replicaCount }}
+  selector:
+    matchLabels:
+      app: ledger-validator
+      {{- include "chart.selectorLabels" . | nindent 6 }}
+  serviceName: {{ include "chart.fullname" . }}-ledger-validator
+  template:
+    metadata:
+      annotations:
+        {{- toYaml .Values.ledgerValidator.podAnnotations | nindent 8 }}
+      labels:
+        app: ledger-validator
+        {{- include "chart.selectorLabels" . | nindent 8 }}
+    spec:
+      imagePullSecrets:
+        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 2000
+        fsGroupChangePolicy: "OnRootMismatch"
+      containers:
+      - name: ledger-validator
+        securityContext:
+          capabilities:
+            drop:
+            - all
+          readOnlyRootFilesystem: true
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.ledgerValidator.imagePullPolicy }}
+        args:
+          {{- toYaml .Values.ledgerValidator.args | nindent 10 }}
+          {{- if eq .Values.mirrorServiceTLS true }}
+          - --listen-uri=validator://0.0.0.0:{{ .Values.ledgerValidator.listenPort }}/?tls-chain=/certs/tls.crt&tls-key=/certs/tls.key
+          {{- else }}
+          - --listen-uri=insecure-validator://0.0.0.0:{{ .Values.ledgerValidator.listenPort }}/
+          {{- end }}
+        ports:
+          - name: validator
+            containerPort: {{ .Values.ledgerValidator.listenPort }}
+            protocol: TCP
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        {{- if eq .Values.mirrorServiceTLS true }}
+        - name: tls-cert
+          mountPath: /certs
+          readOnly: true
+        {{- end }}
+        resources:
+          {{- toYaml .Values.ledgerValidator.resources | nindent 12 }}
+      nodeSelector:
+        {{- toYaml .Values.ledgerValidator.nodeSelector | nindent 8 }}
+      affinity:
+        {{- toYaml .Values.ledgerValidator.affinity | nindent 8 }}
+      tolerations:
+        {{- toYaml .Values.ledgerValidator.tolerations | nindent 8 }}
+      volumes:
+      {{- if eq .Values.ledgerValidator.persistence.enabled false }}
+        - name: data
+          emptyDir: {}
+      {{- end }}
+      {{- if eq .Values.mirrorServiceTLS true }}
+        - name: tls-cert
+          secret:
+            secretName: {{ include "chart.fullname" .}}-lvn-cert-tls
+      {{- end }}
+  {{- if .Values.ledgerValidator.persistence.enabled }}
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      {{- toYaml .Values.ledgerValidator.persistence.spec | nindent 6 }}
+  {{- end }}
+{{- end }}
