@@ -219,11 +219,11 @@ fn main() {
     let _sentry_guard = mc_common::sentry::init();
 
     let config = Config::from_args();
-    if !config.allow_self_signed_tls
-        && utils::is_tls_self_signed(&config.mirror_listen_uri).expect("is_tls_self_signed failed")
-    {
-        panic!("Refusing to start with self-signed TLS certificate. Use --allow-self-signed-tls to override this check.");
-    }
+    // if !config.allow_self_signed_tls
+    //     && utils::is_tls_self_signed(&config.mirror_listen_uri).expect("is_tls_self_signed failed")
+    // {
+    //     panic!("Refusing to start with self-signed TLS certificate. Use --allow-self-signed-tls to override this check.");
+    // }
 
     let (logger, _global_logger_guard) = create_app_logger(o!());
     log::info!(
