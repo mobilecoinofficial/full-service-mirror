@@ -1,3 +1,4 @@
+/*
 // Copyright (c) 2018-2021 MobileCoin Inc.
 
 //! Misc utility methods.
@@ -39,3 +40,4 @@ pub fn is_tls_self_signed(uri: &impl ConnectionUri) -> Result<bool, String> {
         Err(err) => Err(format!("Error verifying certificate: {:?}", err)),
     }
 }
+*/

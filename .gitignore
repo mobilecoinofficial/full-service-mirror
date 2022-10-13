@@ -4,3 +4,6 @@ cargo/
 .idea
 
 release/
+.DS_Store
+
+*.css

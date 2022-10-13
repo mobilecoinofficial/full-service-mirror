@@ -26,8 +26,7 @@ INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.test.mobilecoin.com/
 (cd $RELEASE_DIR && curl -O https://enclave-distribution.test.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
 
 # Build requires dependencies
-cargo build -p mc-full-service --release --manifest-path $PROJECT_ROOT/full-service/Cargo.toml
-cargo build -p mc-validator-service --release --manifest-path $PROJECT_ROOT/full-service/Cargo.toml
+
 cargo build --manifest-path $PROJECT_ROOT/Cargo.toml --release
 
 # Create release dir
