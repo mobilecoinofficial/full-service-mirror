@@ -24,24 +24,23 @@ use std::{collections::HashMap, str::FromStr, sync::Arc, thread::sleep, time::Du
 use structopt::StructOpt;
 
 const SUPPORTED_ENDPOINTS: &[&str] = &[
-    "check_receiver_receive_status",
+    "check_receiver_receipt_status",
     "create_payment_request",
     "get_account",
     "get_account_status",
     "get_address_for_account",
     "get_addresses_for_account",
-    "get_all_accounts",
-    "get_all_transaction_logs_for_block",
-    "get_balance_for_account",
-    "get_balance_for_address",
+    "get_address_status",
+    "get_accounts",
+    "get_transaction_logs",
     "get_block",
     "get_confirmations",
     "get_network_status",
     "get_transaction_log",
-    "get_transaction_logs_for_account",
     "get_wallet_status",
     "validate_confirmation",
     "verify_address",
+    "get_txos",
 ];
 
 /// How long do we wait for full-service to reply?
